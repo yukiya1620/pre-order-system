@@ -17,6 +17,20 @@ class Order extends Model
 
     public const STATUS_CANCELLED = 'キャンセル';
 
+    // payment_methodカラムに入る値
+    public const PAYMENT_METHOD_CASH = 'cash';
+
+    public const PAYMENT_METHOD_CARD = 'card';
+
+    public const PAYMENT_METHOD_PAYPAY = 'paypay';
+
+    // payment_statusカラムに入る値
+    public const PAYMENT_STATUS_UNPAID = 'unpaid';
+
+    public const PAYMENT_STATUS_PAID = 'paid';
+
+    public const PAYMENT_STATUS_REFUNDED = 'refunded';
+
     protected $fillable = [
         'order_number',
         'user_id',
@@ -27,6 +41,9 @@ class Order extends Model
         'delivery_time_slot',
         'is_proxy_order',
         'proxy_note',
+        'payment_method',
+        'payment_status',
+        'paid_at',
     ];
 
     protected function casts(): array
@@ -34,6 +51,7 @@ class Order extends Model
         return [
             'delivery_date' => 'date',
             'is_proxy_order' => 'boolean',
+            'paid_at' => 'datetime',
         ];
     }
 

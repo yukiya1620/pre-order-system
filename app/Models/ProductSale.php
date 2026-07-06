@@ -15,6 +15,11 @@ class ProductSale extends Model
 
     public const STATUS_ENDED = '販売終了';
 
+    // delivery_date_typeカラムに入る値
+    public const DELIVERY_DATE_TYPE_FIXED = 'fixed';
+
+    public const DELIVERY_DATE_TYPE_AUTO = 'auto';
+
     protected $fillable = [
         'product_id',
         'price',
@@ -27,6 +32,10 @@ class ProductSale extends Model
         'delivery_note',
         'is_reservation_open',
         'status',
+        'delivery_date_type',
+        'earliest_delivery_days',
+        'order_deadline_time',
+        'requires_delivery_confirmation',
     ];
 
     protected function casts(): array
@@ -37,6 +46,7 @@ class ProductSale extends Model
             'delivery_date_from' => 'date',
             'delivery_date_to' => 'date',
             'is_reservation_open' => 'boolean',
+            'requires_delivery_confirmation' => 'boolean',
         ];
     }
 
@@ -81,5 +91,25 @@ class ProductSale extends Model
         }
 
         return self::STATUS_ON_SALE;
+    }
+
+    /**
+     * この販売シーズンの商品を今注文したら、いつ配達予定日になるかを決める(設計書3.5)。
+     * - fixed: delivery_date_from をそのまま使う(収穫予約商品など)
+     * - auto: 注文日時 + earliest_delivery_days から計算し、締切時刻を過ぎていたらさらに1日後ろ倒しする
+     */
+    public function resolveDeliveryDate(): \Illuminate\Support\Carbon
+    {
+        if ($this->delivery_date_type === self::DELIVERY_DATE_TYPE_FIXED) {
+            return $this->delivery_date_from;
+        }
+
+        $deliveryDate = today()->addDays($this->earliest_delivery_days ?? 0);
+
+        if ($this->order_deadline_time !== null && now()->format('H:i:s') > $this->order_deadline_time) {
+            $deliveryDate = $deliveryDate->addDay();
+        }
+
+        return $deliveryDate;
     }
 }

@@ -5,17 +5,20 @@ namespace App\Http\Controllers\Api\V1;
 use App\Exceptions\OrderPlacementException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Order\PlaceOrderRequest;
-use App\Models\Notification;
 use App\Models\Order;
 use App\Models\ProductSale;
 use App\Models\User;
+use App\Services\OrderPlacementService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 
 class OrderController extends Controller
 {
+    public function __construct(private readonly OrderPlacementService $orderPlacementService)
+    {
+    }
+
     /**
      * 注文履歴。データは削除せず蓄積し続ける前提で、以下の3パターンに対応する。
      * - パラメータなし: 直近6か月分(履歴ページを開いたときの初期表示)
@@ -74,7 +77,7 @@ class OrderController extends Controller
             ], 422);
         }
 
-        if ($error = $this->availabilityError($productSale, $orderItem->quantity)) {
+        if ($error = $this->orderPlacementService->availabilityError($productSale, $orderItem->quantity)) {
             return response()->json(['error' => $error], 422);
         }
 
@@ -96,7 +99,7 @@ class OrderController extends Controller
         $productSale = ProductSale::with('product')->findOrFail($request->input('product_sale_id'));
         $quantity = (int) $request->input('quantity');
 
-        if ($error = $this->availabilityError($productSale, $quantity)) {
+        if ($error = $this->orderPlacementService->availabilityError($productSale, $quantity)) {
             return response()->json(['error' => $error], 422);
         }
 
@@ -111,59 +114,18 @@ class OrderController extends Controller
     }
 
     /**
-     * 注文確定。設計書3.4の手順(行ロック→在庫確認→減算→注文作成→通知作成)通りに、
-     * 1つのDBトランザクションの中で処理する。
+     * 注文確定。在庫の排他制御を含む本体の処理はOrderPlacementServiceに任せる
+     * (電話注文の代理入力=Farmer\OrderControllerと全く同じ処理を使うため)。
      */
     public function store(PlaceOrderRequest $request): JsonResponse
     {
-        $quantity = (int) $request->input('quantity');
-        $user = Auth::user();
-
         try {
-            $order = DB::transaction(function () use ($request, $quantity, $user) {
-                // lockForUpdate()で対象行に「行ロック」をかける。
-                // このロックが外れるまで、他のリクエストは同じ行の続きの処理を待たされるため、
-                // 同時に注文しても在庫がマイナスになることはない。
-                $productSale = ProductSale::where('id', $request->input('product_sale_id'))
-                    ->lockForUpdate()
-                    ->with('product')
-                    ->firstOrFail();
-
-                if ($error = $this->availabilityError($productSale, $quantity)) {
-                    throw new OrderPlacementException($error['message'], $error['code']);
-                }
-
-                $productSale->decrement('stock_quantity', $quantity);
-
-                if ($productSale->stock_quantity === 0) {
-                    $productSale->update(['status' => ProductSale::STATUS_SOLD_OUT]);
-                }
-
-                $subtotal = $productSale->price * $quantity;
-
-                $order = Order::create([
-                    'order_number' => $this->generateOrderNumber(),
-                    'user_id' => $user->id,
-                    'status' => Order::STATUS_RECEIVED,
-                    'total_amount' => $subtotal,
-                    'delivery_address' => $user->address,
-                    'delivery_date' => $productSale->delivery_date_from,
-                    'delivery_time_slot' => $request->input('delivery_time_slot'),
-                    'is_proxy_order' => false,
-                ]);
-
-                $order->orderItems()->create([
-                    'product_sale_id' => $productSale->id,
-                    'product_name' => $productSale->product->name,
-                    'unit_price' => $productSale->price,
-                    'quantity' => $quantity,
-                    'subtotal' => $subtotal,
-                ]);
-
-                $this->createOrderNotifications($order, $user);
-
-                return $order;
-            });
+            $order = $this->orderPlacementService->place(
+                Auth::user(),
+                (int) $request->input('product_sale_id'),
+                (int) $request->input('quantity'),
+                $request->input('delivery_time_slot'),
+            );
         } catch (OrderPlacementException $exception) {
             return response()->json([
                 'error' => [
@@ -177,45 +139,6 @@ class OrderController extends Controller
     }
 
     /**
-     * 注文番号を発番する(例: 20260704-0012)。当日の注文件数+1を4桁で採番する。
-     */
-    private function generateOrderNumber(): string
-    {
-        $datePart = now()->format('Ymd');
-        $sequence = Order::whereDate('created_at', today())->count() + 1;
-
-        return $datePart.'-'.str_pad((string) $sequence, 4, '0', STR_PAD_LEFT);
-    }
-
-    /**
-     * 注文受付を購入者へ、新規注文を農家へ通知する。
-     */
-    private function createOrderNotifications(Order $order, User $buyer): void
-    {
-        Notification::create([
-            'user_id' => $buyer->id,
-            'type' => '注文受付',
-            'title' => 'ご注文を受け付けました',
-            'body' => "注文番号 {$order->order_number} を受け付けました。配達予定日は".$order->delivery_date->format('n月j日')."です。",
-            'related_order_id' => $order->id,
-            'is_read' => false,
-        ]);
-
-        $farmers = User::where('role', User::ROLE_FARMER)->get();
-
-        foreach ($farmers as $farmer) {
-            Notification::create([
-                'user_id' => $farmer->id,
-                'type' => '新規注文',
-                'title' => '新しい注文が入りました',
-                'body' => "注文番号 {$order->order_number}({$buyer->name}様)",
-                'related_order_id' => $order->id,
-                'is_read' => false,
-            ]);
-        }
-    }
-
-    /**
      * ログイン中の利用者本人の注文かどうかを確認する。
      *
      * @return array<string, string>|null
@@ -226,31 +149,6 @@ class OrderController extends Controller
             return [
                 'code' => 'FORBIDDEN',
                 'message' => 'この注文は閲覧できません。',
-            ];
-        }
-
-        return null;
-    }
-
-    /**
-     * 在庫が足りているか、販売中かどうかを確認する。
-     * 問題があればエラー内容を、問題無ければnullを返す。
-     *
-     * @return array<string, string>|null
-     */
-    private function availabilityError(ProductSale $productSale, int $quantity): ?array
-    {
-        if ($productSale->status !== ProductSale::STATUS_ON_SALE || ! $productSale->is_reservation_open) {
-            return [
-                'code' => 'NOT_AVAILABLE',
-                'message' => '現在この商品は注文を受け付けていません。',
-            ];
-        }
-
-        if ($productSale->stock_quantity < $quantity) {
-            return [
-                'code' => 'OUT_OF_STOCK',
-                'message' => '申し訳ありません。売り切れました。',
             ];
         }
 
@@ -274,7 +172,7 @@ class OrderController extends Controller
             'subtotal' => $subtotal,
             'total_amount' => $subtotal,
             'delivery_address' => $user->address,
-            'delivery_date' => $productSale->delivery_date_from,
+            'delivery_date' => $productSale->resolveDeliveryDate(),
             'delivery_time_slot' => $deliveryTimeSlot,
             'delivery_note' => $productSale->delivery_note,
         ];
