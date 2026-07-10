@@ -1,6 +1,8 @@
 <?php
 
+use App\Http\Controllers\Api\V1\AnnouncementController;
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\Farmer\AnnouncementController as FarmerAnnouncementController;
 use App\Http\Controllers\Api\V1\Farmer\DeliveryConfirmationController;
 use App\Http\Controllers\Api\V1\Farmer\OrderController as FarmerOrderController;
 use App\Http\Controllers\Api\V1\Farmer\ProductController as FarmerProductController;
@@ -28,6 +30,9 @@ Route::prefix('v1')->group(function () {
     // 購入者向け:販売中の商品一覧・詳細
     Route::get('products', [ProductController::class, 'index']);
     Route::get('products/{productSale}', [ProductController::class, 'show']);
+
+    // 購入者向け:公開中のお知らせ一覧(トップページ表示用)
+    Route::get('announcements', [AnnouncementController::class, 'index']);
 
     // 購入者向け:注文
     Route::middleware('auth:sanctum')->group(function () {
@@ -61,5 +66,10 @@ Route::prefix('v1')->group(function () {
 
         Route::get('sales-summary', [SalesController::class, 'summary']);
         Route::get('sales-by-product', [SalesController::class, 'byProduct']);
+
+        Route::get('announcements', [FarmerAnnouncementController::class, 'index']);
+        Route::post('announcements', [FarmerAnnouncementController::class, 'store']);
+        Route::put('announcements/{announcement}', [FarmerAnnouncementController::class, 'update']);
+        Route::delete('announcements/{announcement}', [FarmerAnnouncementController::class, 'destroy']);
     });
 });
