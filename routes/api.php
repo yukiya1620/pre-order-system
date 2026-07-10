@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\V1\Farmer\DeliveryConfirmationController;
 use App\Http\Controllers\Api\V1\Farmer\OrderController as FarmerOrderController;
 use App\Http\Controllers\Api\V1\Farmer\ProductController as FarmerProductController;
 use App\Http\Controllers\Api\V1\Farmer\ProductSaleController;
+use App\Http\Controllers\Api\V1\Farmer\SalesController;
 use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\OrderController;
 use App\Http\Controllers\Api\V1\ProductController;
@@ -53,6 +54,12 @@ Route::prefix('v1')->group(function () {
         Route::get('delivery-confirmations', [DeliveryConfirmationController::class, 'index']);
         Route::post('delivery-confirmations/{deliveryConfirmation}/respond', [DeliveryConfirmationController::class, 'respond']);
 
+        Route::get('orders', [FarmerOrderController::class, 'index']);
+        Route::get('orders/{order}', [FarmerOrderController::class, 'show']);
         Route::post('orders', [FarmerOrderController::class, 'store']);
+        Route::put('orders/{order}/complete', [FarmerOrderController::class, 'complete']);
+
+        Route::get('sales-summary', [SalesController::class, 'summary']);
+        Route::get('sales-by-product', [SalesController::class, 'byProduct']);
     });
 });

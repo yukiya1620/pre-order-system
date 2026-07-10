@@ -4,16 +4,105 @@ namespace App\Http\Controllers\Api\V1\Farmer;
 
 use App\Exceptions\OrderPlacementException;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Farmer\CompleteOrderRequest;
 use App\Http\Requests\Farmer\PlaceProxyOrderRequest;
+use App\Models\Notification;
 use App\Models\Order;
 use App\Models\User;
 use App\Services\OrderPlacementService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class OrderController extends Controller
 {
     public function __construct(private readonly OrderPlacementService $orderPlacementService)
     {
+    }
+
+    /**
+     * 予約一覧(配達日順)。状態(status)・商品(product_id)で絞り込み可能。
+     * product_idはorders自体には持たせていないので、order_items→product_sales経由でたどる。
+     */
+    public function index(Request $request): JsonResponse
+    {
+        $orders = Order::query()
+            ->with(['user:id,name,phone_number,address', 'orderItems.productSale.product', 'deliveryConfirmation'])
+            ->when($request->filled('status'), function ($query) use ($request) {
+                $query->where('status', $request->input('status'));
+            })
+            ->when($request->filled('product_id'), function ($query) use ($request) {
+                $productId = (int) $request->input('product_id');
+                $query->whereHas('orderItems.productSale', function ($query) use ($productId) {
+                    $query->where('product_id', $productId);
+                });
+            })
+            ->orderBy('delivery_date')
+            ->paginate(20);
+
+        return response()->json(['orders' => $orders]);
+    }
+
+    /**
+     * 注文詳細。農家は全購入者の注文を見る役割なので、購入者向けshow()と違い
+     * 「自分の注文かどうか」のチェックは行わない(routes/api.phpのfarmerミドルウェアで守る)。
+     */
+    public function show(Order $order): JsonResponse
+    {
+        return response()->json([
+            'order' => $order->load(['user', 'orderItems.productSale.product', 'deliveryConfirmation']),
+        ]);
+    }
+
+    /**
+     * 配達完了への更新+支払い状態の記録。
+     * すでに配達完了の注文への再リクエストはエラーにせず、支払い情報の修正だけ反映する
+     * (べき等にする。誤操作で2回押されても購入者へ重複通知が飛ばないように)。
+     */
+    public function complete(CompleteOrderRequest $request, Order $order): JsonResponse
+    {
+        if ($order->status === Order::STATUS_CANCELLED) {
+            return response()->json([
+                'error' => [
+                    'code' => 'ORDER_CANCELLED',
+                    'message' => 'キャンセル済みの注文は配達完了にできません。',
+                ],
+            ], 422);
+        }
+
+        $wasAlreadyDelivered = $order->status === Order::STATUS_DELIVERED;
+
+        $paymentStatus = $request->input('payment_status');
+
+        $order->status = Order::STATUS_DELIVERED;
+        $order->payment_status = $paymentStatus;
+
+        if ($request->filled('payment_method')) {
+            $order->payment_method = $request->input('payment_method');
+        }
+
+        if ($paymentStatus === Order::PAYMENT_STATUS_PAID) {
+            $order->paid_at = now();
+        } elseif ($paymentStatus === Order::PAYMENT_STATUS_UNPAID) {
+            $order->paid_at = null;
+        }
+        // refundedの場合はpaid_atを現状維持する
+
+        $order->save();
+
+        if (! $wasAlreadyDelivered) {
+            Notification::create([
+                'user_id' => $order->user_id,
+                'type' => '配達完了',
+                'title' => '配達が完了しました',
+                'body' => "注文番号 {$order->order_number} の配達が完了しました。ご利用ありがとうございました。",
+                'related_order_id' => $order->id,
+                'is_read' => false,
+            ]);
+        }
+
+        return response()->json([
+            'order' => $order->fresh(['user', 'orderItems.productSale.product', 'deliveryConfirmation']),
+        ]);
     }
 
     /**
