@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\OrderController;
 use App\Http\Controllers\Api\V1\ProductController;
 use App\Http\Controllers\Api\V1\SmsAuthController;
+use App\Http\Controllers\Api\V1\UserController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -33,6 +34,12 @@ Route::prefix('v1')->group(function () {
 
     // 購入者向け:公開中のお知らせ一覧(トップページ表示用)
     Route::get('announcements', [AnnouncementController::class, 'index']);
+
+    // 共通(購入者・農家どちらも):自分の登録情報
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::get('users/me', [UserController::class, 'me']);
+        Route::put('users/me', [UserController::class, 'update']);
+    });
 
     // 購入者向け:注文
     Route::middleware('auth:sanctum')->group(function () {
