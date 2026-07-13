@@ -28,11 +28,10 @@
         </section>
 
         <nav class="farmer-home__menu" aria-label="業務メニュー">
-            <div class="farmer-home__menu-item farmer-home__menu-item--disabled" aria-disabled="true">
+            <a href="{{ route('farmer.delivery-confirmations') }}" class="farmer-home__menu-item">
                 <span class="farmer-home__menu-item-icon" aria-hidden="true">📋</span>
                 <span>注文確認</span>
-                <span class="farmer-home__menu-item-badge">準備中</span>
-            </div>
+            </a>
 
             <div class="farmer-home__menu-item farmer-home__menu-item--disabled" aria-disabled="true">
                 <span class="farmer-home__menu-item-icon" aria-hidden="true">🥬</span>

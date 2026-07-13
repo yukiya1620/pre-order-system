@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\FarmerDeliveryConfirmationsController;
 use App\Http\Controllers\FarmerHomeController;
 use App\Http\Controllers\SettingsController;
 use Illuminate\Support\Facades\Route;
@@ -15,3 +16,6 @@ Route::get('/settings', [SettingsController::class, 'show'])->name('settings');
 // 農家ホーム(F1)。既存の farmer ミドルウェア(role=farmer以外を403で弾く)をそのまま利用する。
 // 未ログイン・購入者ロールもこのミドルウェア1つでまとめて弾かれる。
 Route::middleware('farmer')->get('/farmer', [FarmerHomeController::class, 'show'])->name('farmer.home');
+
+// 注文確認(F2)。farmerミドルウェアの考え方はF1と同じ。
+Route::middleware('farmer')->get('/farmer/delivery-confirmations', [FarmerDeliveryConfirmationsController::class, 'show'])->name('farmer.delivery-confirmations');

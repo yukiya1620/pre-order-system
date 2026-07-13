@@ -207,3 +207,107 @@ button[type="submit"]:disabled {
         grid-template-columns: 1fr;
     }
 }
+
+/* 注文確認画面(F2)。他画面のクラスと混ざらないよう confirmation- を接頭辞にする */
+.confirmation-page__header {
+    margin-bottom: 20px;
+}
+.confirmation-page__back-link {
+    display: inline-block;
+    margin-bottom: 12px;
+    font-size: 16px;
+    color: var(--color-text);
+    text-decoration: none;
+}
+.confirmation-page__title {
+    font-size: 24px;
+    margin: 0;
+}
+.confirmation-empty {
+    padding: 16px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: #f9f9f9;
+    text-align: center;
+}
+.confirmation-list {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+.confirmation-card {
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 16px;
+    background: #ffffff;
+}
+.confirmation-card__date {
+    font-size: 20px;
+    font-weight: bold;
+    margin: 0 0 12px;
+}
+.confirmation-card__buyer,
+.confirmation-card__items,
+.confirmation-card__address {
+    margin: 0 0 8px;
+}
+.confirmation-card__question {
+    font-weight: bold;
+    margin: 16px 0 12px;
+}
+.confirmation-card__actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.confirmation-card__actions button {
+    min-height: 56px;
+    font-size: 18px;
+    font-weight: bold;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+    background: #ffffff;
+    color: var(--color-text);
+    cursor: pointer;
+}
+.confirmation-card__actions button:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+.confirmation-card__actions button[data-response="配達可能"] {
+    background: var(--color-accent);
+    color: #ffffff;
+    border-color: var(--color-accent);
+}
+.confirmation-card__date-picker {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+.confirmation-card__date-picker input[type="date"] {
+    flex: 1;
+    min-height: 56px;
+    font-size: 18px;
+    padding: 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+}
+.confirmation-card__date-picker button {
+    min-height: 56px;
+    padding: 0 16px;
+    font-size: 18px;
+    font-weight: bold;
+    border-radius: 8px;
+    border: none;
+    background: var(--color-accent);
+    color: #ffffff;
+    cursor: pointer;
+}
+.confirmation-card__note {
+    font-size: 14px;
+    color: #555555;
+    margin: 16px 0 0;
+}
+.confirmation-card__message {
+    margin-top: 12px;
+}

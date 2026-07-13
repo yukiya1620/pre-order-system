@@ -16,7 +16,7 @@ class DeliveryConfirmationController extends Controller
      */
     public function index(): JsonResponse
     {
-        $confirmations = DeliveryConfirmation::with('order.user')
+        $confirmations = DeliveryConfirmation::with('order.user', 'order.orderItems')
             ->whereNull('responded_at')
             ->orderBy('notified_at')
             ->get();
