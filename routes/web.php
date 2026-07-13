@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\FarmerDeliveryConfirmationsController;
 use App\Http\Controllers\FarmerHomeController;
+use App\Http\Controllers\FarmerOrdersController;
 use App\Http\Controllers\SettingsController;
 use Illuminate\Support\Facades\Route;
 
@@ -19,3 +20,6 @@ Route::middleware('farmer')->get('/farmer', [FarmerHomeController::class, 'show'
 
 // 注文確認(F2)。farmerミドルウェアの考え方はF1と同じ。
 Route::middleware('farmer')->get('/farmer/delivery-confirmations', [FarmerDeliveryConfirmationsController::class, 'show'])->name('farmer.delivery-confirmations');
+
+// 予約一覧(F3)。farmerミドルウェアの考え方はF1と同じ。
+Route::middleware('farmer')->get('/farmer/orders', [FarmerOrdersController::class, 'show'])->name('farmer.orders');

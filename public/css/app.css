@@ -311,3 +311,191 @@ button[type="submit"]:disabled {
 .confirmation-card__message {
     margin-top: 12px;
 }
+
+/* 予約一覧画面(F3)。他画面のクラスと混ざらないよう orders-page__ / order-card__ を接頭辞にする */
+.orders-page__header {
+    margin-bottom: 12px;
+}
+.orders-page__back-link {
+    display: inline-block;
+    margin-bottom: 12px;
+    font-size: 16px;
+    color: var(--color-text);
+    text-decoration: none;
+}
+.orders-page__title {
+    font-size: 24px;
+    margin: 0;
+}
+.orders-page__unimplemented {
+    margin-bottom: 20px;
+}
+.orders-page__unimplemented-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 56px;
+    padding: 0 16px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: #f2f2f2;
+    color: #888888;
+    font-size: 16px;
+    font-weight: bold;
+}
+.orders-page__filter {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+.orders-page__filter label {
+    margin-bottom: 0;
+    white-space: nowrap;
+}
+.orders-page__filter select {
+    flex: 1;
+    min-height: 56px;
+    font-size: 18px;
+    padding: 8px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+}
+.orders-empty {
+    padding: 16px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: #f9f9f9;
+    text-align: center;
+}
+.orders-list {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+.order-card {
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 16px;
+    background: #ffffff;
+}
+.order-card__date {
+    font-size: 20px;
+    font-weight: bold;
+    margin: 0 0 12px;
+}
+.order-card__buyer,
+.order-card__items {
+    margin: 0 0 8px;
+}
+.order-card__status-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 14px;
+    font-weight: bold;
+    margin: 8px 0 16px;
+}
+.order-status-badge--received {
+    background: #e3f2fd;
+    color: #1565c0;
+}
+.order-status-badge--confirmed {
+    background: #e0f2f1;
+    color: #00695c;
+}
+.order-status-badge--changed {
+    background: #fff3e0;
+    color: #ef6c00;
+}
+.order-status-badge--delivered {
+    background: #e8f5e9;
+    color: var(--color-accent);
+}
+.order-status-badge--cancelled {
+    background: #fdecea;
+    color: var(--color-warning);
+}
+.order-card__complete-button {
+    display: block;
+    width: 100%;
+    min-height: 56px;
+    font-size: 18px;
+    font-weight: bold;
+    border-radius: 8px;
+    border: 1px solid var(--color-accent);
+    background: #ffffff;
+    color: var(--color-accent);
+    cursor: pointer;
+}
+.order-card__complete-button:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+.order-card__complete-form {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--color-border);
+}
+.order-card__complete-form label {
+    margin-top: 12px;
+}
+.order-card__complete-form select {
+    width: 100%;
+    min-height: 56px;
+    font-size: 18px;
+    padding: 8px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+}
+.order-card__complete-form button {
+    display: block;
+    width: 100%;
+    min-height: 56px;
+    font-size: 18px;
+    font-weight: bold;
+    border-radius: 8px;
+    border: none;
+    background: var(--color-accent);
+    color: #ffffff;
+    cursor: pointer;
+    margin-top: 16px;
+}
+.order-card__complete-form button:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+.order-card__unimplemented {
+    margin-top: 16px;
+    font-size: 14px;
+    color: #888888;
+}
+.order-card__message {
+    margin-top: 12px;
+}
+.orders-pager {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 24px;
+}
+.orders-pager button {
+    min-height: 56px;
+    padding: 0 20px;
+    font-size: 18px;
+    font-weight: bold;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+    background: #ffffff;
+    color: var(--color-text);
+    cursor: pointer;
+}
+.orders-pager button:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+.orders-pager__indicator {
+    font-size: 16px;
+    font-weight: bold;
+}

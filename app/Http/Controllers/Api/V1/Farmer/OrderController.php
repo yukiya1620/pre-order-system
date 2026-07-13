@@ -22,11 +22,16 @@ class OrderController extends Controller
     /**
      * 予約一覧(配達日順)。状態(status)・商品(product_id)で絞り込み可能。
      * product_idはorders自体には持たせていないので、order_items→product_sales経由でたどる。
+     * active_only=1で「配達完了・キャンセルを除いた未完了のみ」に絞り込める(F3一覧の初期表示用。
+     * 後方互換のため未指定時は従来通り全ステータスを返す)。
      */
     public function index(Request $request): JsonResponse
     {
         $orders = Order::query()
             ->with(['user:id,name,phone_number,address', 'orderItems.productSale.product', 'deliveryConfirmation'])
+            ->when($request->boolean('active_only'), function ($query) {
+                $query->whereNotIn('status', [Order::STATUS_DELIVERED, Order::STATUS_CANCELLED]);
+            })
             ->when($request->filled('status'), function ($query) use ($request) {
                 $query->where('status', $request->input('status'));
             })
