@@ -135,11 +135,11 @@
         editLink.textContent = '商品を編集 ▶';
         actionsEl.appendChild(editLink);
 
-        var resellItem = document.createElement('div');
-        resellItem.className = 'orders-page__unimplemented-item';
-        resellItem.setAttribute('aria-disabled', 'true');
-        resellItem.textContent = '去年の商品から再販売 準備中';
-        actionsEl.appendChild(resellItem);
+        var resellLink = document.createElement('a');
+        resellLink.className = 'product-card__edit-link';
+        resellLink.href = productEditBaseUrl + '/' + product.id + '/resell';
+        resellLink.textContent = (product.latest_product_sale ? '去年の商品から再販売 ▶' : '販売設定を作成 ▶');
+        actionsEl.appendChild(resellLink);
 
         infoEl.appendChild(actionsEl);
         card.appendChild(infoEl);

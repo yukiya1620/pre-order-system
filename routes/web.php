@@ -35,3 +35,6 @@ Route::middleware('farmer')->get('/farmer/products', [FarmerProductsController::
 // 存在しない商品idはルートモデルバインディングにより自動的に404になる。
 Route::middleware('farmer')->get('/farmer/products/create', [FarmerProductsController::class, 'create'])->name('farmer.products.create');
 Route::middleware('farmer')->get('/farmer/products/{product}/edit', [FarmerProductsController::class, 'edit'])->name('farmer.products.edit');
+
+// 再販売設定(F7・新規販売シーズン作成専用)。既存シーズンの編集・停止は今回対応しない。
+Route::middleware('farmer')->get('/farmer/products/{product}/resell', [FarmerProductsController::class, 'resell'])->name('farmer.products.resell');

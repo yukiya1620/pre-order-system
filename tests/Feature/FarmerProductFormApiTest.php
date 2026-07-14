@@ -69,6 +69,40 @@ class FarmerProductFormApiTest extends TestCase
         $response->assertJsonPath('product.category.name', '季節商品');
     }
 
+    public function test_show_includes_null_latest_product_sale_when_none_exists(): void
+    {
+        $product = $this->createProduct();
+        $farmer = User::factory()->farmer()->create();
+
+        $response = $this->actingAs($farmer)->getJson('/api/v1/farmer/products/'.$product->id);
+
+        $response->assertOk();
+        $response->assertJsonPath('product.latest_product_sale', null);
+    }
+
+    public function test_show_includes_latest_product_sale_when_it_exists(): void
+    {
+        $product = $this->createProduct();
+        $sale = \App\Models\ProductSale::create([
+            'product_id' => $product->id,
+            'price' => 500,
+            'stock_quantity' => 10,
+            'initial_stock' => 20,
+            'sale_start_date' => now()->subMonth(),
+            'sale_end_date' => now()->subDays(5),
+            'delivery_date_from' => now()->subDays(10),
+            'status' => '販売終了',
+        ]);
+        $farmer = User::factory()->farmer()->create();
+
+        $response = $this->actingAs($farmer)->getJson('/api/v1/farmer/products/'.$product->id);
+
+        $response->assertOk();
+        $response->assertJsonPath('product.latest_product_sale.id', $sale->id);
+        $response->assertJsonPath('product.latest_product_sale.price', 500);
+        $response->assertJsonPath('product.latest_product_sale.initial_stock', 20);
+    }
+
     public function test_show_nonexistent_product_returns_404(): void
     {
         $farmer = User::factory()->farmer()->create();

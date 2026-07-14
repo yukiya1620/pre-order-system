@@ -36,6 +36,8 @@ label {
 }
 input[type="text"],
 input[type="email"],
+input[type="number"],
+input[type="date"],
 select,
 textarea {
     width: 100%;
@@ -798,4 +800,39 @@ input[type="file"] {
 .product-form__checkbox-label input[type="checkbox"] {
     width: 24px;
     height: 24px;
+}
+
+/* 再販売設定画面(F7)。他画面のクラスと混ざらないよう product-resell-page__ / product-resell__ を接頭辞にする */
+.product-resell-page__header {
+    margin-bottom: 20px;
+}
+.product-resell-page__back-link {
+    display: inline-block;
+    margin-bottom: 12px;
+    font-size: 16px;
+    color: var(--color-text);
+    text-decoration: none;
+}
+.product-resell-page__title {
+    font-size: 24px;
+    margin: 0;
+}
+.product-resell__product-name {
+    font-size: 20px;
+    font-weight: bold;
+    margin: 0;
+}
+.product-resell__previous {
+    margin-bottom: 20px;
+    padding: 16px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: #f9f9f9;
+}
+.product-resell__previous-heading {
+    font-weight: bold;
+    margin: 0 0 8px;
+}
+.product-resell__previous p {
+    margin: 4px 0;
 }

@@ -23,11 +23,12 @@ class ProductController extends Controller
     }
 
     /**
-     * 商品マスタ単体(編集フォームの初期値取得用)。販売設定は含めない。
+     * 商品マスタ単体(F6編集フォーム・F7再販売設定の初期値取得用)。
+     * latest_product_sale(最新の販売シーズン。無ければnull)も含める(F5一覧APIと同じ形)。
      */
     public function show(Product $product): JsonResponse
     {
-        return response()->json(['product' => $product->load('category')]);
+        return response()->json(['product' => $product->load(['category', 'latestProductSale'])]);
     }
 
     public function store(StoreProductRequest $request): JsonResponse

@@ -9,11 +9,14 @@ use App\Models\Product;
 use App\Models\ProductSale;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class ProductSaleController extends Controller
 {
     /**
-     * 商品マスタに対して、新しい販売シーズンを作る(再販売もここから行う)
+     * 商品マスタに対して、新しい販売シーズンを作る(F7再販売設定もここから行う)。
+     * 非表示(is_archived)にしていた商品でも新しいシーズンを作れば自動的に再表示にする。
+     * シーズン作成と商品の再表示を同じトランザクションでまとめて行う。
      */
     public function store(StoreProductSaleRequest $request, Product $product): JsonResponse
     {
@@ -21,19 +24,27 @@ class ProductSaleController extends Controller
         $saleEndDate = Carbon::parse($request->input('sale_end_date'));
         $stockQuantity = (int) $request->input('stock_quantity');
 
-        $productSale = $product->productSales()->create([
-            'price' => $request->input('price'),
-            // 販売開始時点なので、在庫数と開始時在庫数は同じ値になる
-            'stock_quantity' => $stockQuantity,
-            'initial_stock' => $stockQuantity,
-            'sale_start_date' => $saleStartDate,
-            'sale_end_date' => $saleEndDate,
-            'delivery_date_from' => $request->input('delivery_date_from'),
-            'delivery_date_to' => $request->input('delivery_date_to'),
-            'delivery_note' => $request->input('delivery_note', '天候等により前後する場合があります'),
-            'is_reservation_open' => $request->boolean('is_reservation_open', true),
-            'status' => ProductSale::determineStatus($saleStartDate, $saleEndDate),
-        ]);
+        $productSale = DB::transaction(function () use ($request, $product, $saleStartDate, $saleEndDate, $stockQuantity) {
+            $productSale = $product->productSales()->create([
+                'price' => $request->input('price'),
+                // 販売開始時点なので、在庫数と開始時在庫数は同じ値になる
+                'stock_quantity' => $stockQuantity,
+                'initial_stock' => $stockQuantity,
+                'sale_start_date' => $saleStartDate,
+                'sale_end_date' => $saleEndDate,
+                'delivery_date_from' => $request->input('delivery_date_from'),
+                'delivery_date_to' => $request->input('delivery_date_to'),
+                'delivery_note' => $request->input('delivery_note', '天候等により前後する場合があります'),
+                'is_reservation_open' => $request->boolean('is_reservation_open', true),
+                'status' => ProductSale::determineStatus($saleStartDate, $saleEndDate),
+            ]);
+
+            if ($product->is_archived) {
+                $product->update(['is_archived' => false]);
+            }
+
+            return $productSale;
+        });
 
         return response()->json(['product_sale' => $productSale->load('product')], 201);
     }
