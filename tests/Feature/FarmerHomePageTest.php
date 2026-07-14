@@ -121,6 +121,16 @@ class FarmerHomePageTest extends TestCase
         $response->assertSee('設定');
     }
 
+    public function test_farmer_home_has_link_to_announcements(): void
+    {
+        $farmer = User::factory()->farmer()->create();
+
+        $response = $this->actingAs($farmer)->get('/farmer');
+
+        $response->assertOk();
+        $response->assertSee('href="'.route('farmer.announcements').'"', false);
+    }
+
     public function test_farmer_home_does_not_link_to_unimplemented_screens(): void
     {
         $farmer = User::factory()->farmer()->create();
@@ -130,8 +140,6 @@ class FarmerHomePageTest extends TestCase
         $response->assertOk();
         // 未実装の業務メニューはhref="#"のような意味のないリンクにしない
         $response->assertDontSee('href="#"', false);
-        // 準備中の項目が実際にリンク化されていないことも確認する
-        $response->assertSee('準備中');
     }
 
     public function test_farmer_home_has_logout_control(): void

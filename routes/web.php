@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\FarmerAnnouncementsController;
 use App\Http\Controllers\FarmerDeliveryConfirmationsController;
 use App\Http\Controllers\FarmerHomeController;
 use App\Http\Controllers\FarmerOrdersController;
@@ -42,3 +43,6 @@ Route::middleware('farmer')->get('/farmer/products/{product}/resell', [FarmerPro
 
 // 売上確認(F8)。farmerミドルウェアの考え方はF1と同じ。
 Route::middleware('farmer')->get('/farmer/sales', [FarmerSalesController::class, 'index'])->name('farmer.sales');
+
+// お知らせ投稿(F9)。farmerミドルウェアの考え方はF1と同じ。
+Route::middleware('farmer')->get('/farmer/announcements', [FarmerAnnouncementsController::class, 'index'])->name('farmer.announcements');

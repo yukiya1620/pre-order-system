@@ -938,3 +938,158 @@ input[type="file"] {
         grid-template-columns: 1fr;
     }
 }
+
+/* お知らせ投稿画面(F9)。他画面のクラスと混ざらないよう announcements-page__ / announcement-card__ を接頭辞にする */
+.announcements-page__header {
+    margin-bottom: 12px;
+}
+.announcements-page__back-link {
+    display: inline-block;
+    margin-bottom: 12px;
+    font-size: 16px;
+    color: var(--color-text);
+    text-decoration: none;
+}
+.announcements-page__title {
+    font-size: 24px;
+    margin: 0 0 20px;
+}
+.announcements-page__preset-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+.announcements-page__preset-button {
+    min-height: 44px;
+    padding: 0 14px;
+    font-size: 15px;
+    border-radius: 999px;
+    border: 1px solid var(--color-accent);
+    background: #ffffff;
+    color: var(--color-accent);
+    cursor: pointer;
+}
+.announcements-page__checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-weight: normal;
+}
+.announcements-page__checkbox-label input[type="checkbox"] {
+    width: 24px;
+    height: 24px;
+}
+#announcement-cancel-edit-button {
+    display: block;
+    width: 100%;
+    min-height: 56px;
+    font-size: 18px;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+    background: #ffffff;
+    color: var(--color-text);
+    cursor: pointer;
+    margin-top: 12px;
+}
+.announcements-page__list-heading {
+    font-size: 20px;
+    margin: 32px 0 16px;
+}
+.announcements-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+.announcement-card {
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 16px;
+    background: #ffffff;
+}
+.announcement-card__title-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 8px;
+}
+.announcement-card__title {
+    font-size: 18px;
+    font-weight: bold;
+}
+.announcement-card__badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: bold;
+}
+.announcement-card__badge--published {
+    background: #e8f5e9;
+    color: var(--color-accent);
+}
+.announcement-card__badge--unpublished {
+    background: #f2f2f2;
+    color: #666666;
+}
+.announcement-card__date {
+    font-size: 14px;
+    color: #555555;
+    margin: 0 0 8px;
+}
+.announcement-card__body {
+    margin: 0 0 12px;
+    white-space: pre-wrap;
+}
+.announcement-card__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.announcement-card__actions button {
+    min-height: 44px;
+    padding: 0 14px;
+    font-size: 15px;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+    background: #ffffff;
+    color: var(--color-text);
+    cursor: pointer;
+}
+.announcement-card__delete-button {
+    border-color: var(--color-warning) !important;
+    color: var(--color-warning) !important;
+}
+.announcement-card__actions button:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+.announcement-card__message {
+    margin-top: 12px;
+}
+.announcements-pager {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 24px;
+}
+.announcements-pager button {
+    min-height: 56px;
+    padding: 0 20px;
+    font-size: 18px;
+    font-weight: bold;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+    background: #ffffff;
+    color: var(--color-text);
+    cursor: pointer;
+}
+.announcements-pager button:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+.announcements-pager__indicator {
+    font-size: 16px;
+    font-weight: bold;
+}

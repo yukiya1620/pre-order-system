@@ -48,11 +48,10 @@
                 <span>売上確認</span>
             </a>
 
-            <div class="farmer-home__menu-item farmer-home__menu-item--disabled" aria-disabled="true">
+            <a href="{{ route('farmer.announcements') }}" class="farmer-home__menu-item">
                 <span class="farmer-home__menu-item-icon" aria-hidden="true">📢</span>
                 <span>お知らせ</span>
-                <span class="farmer-home__menu-item-badge">準備中</span>
-            </div>
+            </a>
 
             <a href="{{ route('settings') }}" class="farmer-home__menu-item">
                 <span class="farmer-home__menu-item-icon" aria-hidden="true">⚙</span>
