@@ -17,6 +17,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'farmer' => \App\Http\Middleware\EnsureUserIsFarmer::class,
+            'buyer' => \App\Http\Middleware\EnsureUserIsBuyer::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

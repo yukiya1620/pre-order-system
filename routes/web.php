@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\AuthPageController;
+use App\Http\Controllers\BuyerHomeController;
 use App\Http\Controllers\FarmerAnnouncementsController;
 use App\Http\Controllers\FarmerDeliveryConfirmationsController;
 use App\Http\Controllers\FarmerHomeController;
@@ -9,9 +11,12 @@ use App\Http\Controllers\FarmerSalesController;
 use App\Http\Controllers\SettingsController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return view('welcome');
-});
+// 購入者トップ(B3の暫定版)。buyerミドルウェアが未認証→/login、農家→/farmerに振り分ける。
+Route::middleware('buyer')->get('/', [BuyerHomeController::class, 'show'])->name('buyer.home');
+
+// 会員登録(B1)・ログイン(B2)。同じController/Blade/JSを共有し、モードだけ切り替える。
+Route::get('/register', [AuthPageController::class, 'register'])->name('register');
+Route::get('/login', [AuthPageController::class, 'login'])->name('login');
 
 // 設定画面(B9・F1「設定」に対応)。購入者・農家共通で、表示中の登録情報は
 // 画面側のJavaScriptがGET/PUT /api/v1/users/meを呼んで取得・更新する。
