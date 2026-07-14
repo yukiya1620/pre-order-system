@@ -5,6 +5,7 @@
     }
 
     var productsUrl = container.dataset.productsUrl;
+    var productEditBaseUrl = container.dataset.productEditBaseUrl;
     var loadingEl = document.getElementById('products-loading');
     var generalMessageEl = document.getElementById('products-message');
     var emptyEl = document.getElementById('products-empty');
@@ -128,11 +129,11 @@
         var actionsEl = document.createElement('div');
         actionsEl.className = 'product-card__actions';
 
-        var editItem = document.createElement('div');
-        editItem.className = 'orders-page__unimplemented-item';
-        editItem.setAttribute('aria-disabled', 'true');
-        editItem.textContent = '商品を編集 準備中';
-        actionsEl.appendChild(editItem);
+        var editLink = document.createElement('a');
+        editLink.className = 'product-card__edit-link';
+        editLink.href = productEditBaseUrl + '/' + product.id + '/edit';
+        editLink.textContent = '商品を編集 ▶';
+        actionsEl.appendChild(editLink);
 
         var resellItem = document.createElement('div');
         resellItem.className = 'orders-page__unimplemented-item';

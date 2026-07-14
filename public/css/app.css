@@ -35,12 +35,19 @@ label {
     margin-bottom: 8px;
 }
 input[type="text"],
-input[type="email"] {
+input[type="email"],
+select,
+textarea {
     width: 100%;
     font-size: 18px;
     padding: 12px;
     border: 1px solid var(--color-border);
     border-radius: 8px;
+    font-family: inherit;
+}
+textarea {
+    min-height: 120px;
+    resize: vertical;
 }
 .readonly-value {
     display: block;
@@ -588,6 +595,19 @@ button[type="submit"]:disabled {
 .products-page__unimplemented {
     margin-bottom: 20px;
 }
+.products-page__new-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 56px;
+    padding: 0 20px;
+    border-radius: 8px;
+    font-size: 18px;
+    font-weight: bold;
+    text-decoration: none;
+    background: var(--color-accent);
+    color: #ffffff;
+}
 .products-page__filter {
     display: flex;
     align-items: center;
@@ -716,8 +736,66 @@ button[type="submit"]:disabled {
     flex-direction: column;
     gap: 8px;
 }
+.product-card__edit-link {
+    display: block;
+    font-size: 16px;
+    font-weight: bold;
+    color: var(--color-accent);
+    text-decoration: none;
+}
 @media (max-width: 480px) {
     .product-card {
         flex-direction: column;
     }
+}
+
+/* 商品登録・編集画面(F6)。他画面のクラスと混ざらないよう product-form-page__ / product-form__ を接頭辞にする */
+.product-form-page__header {
+    margin-bottom: 20px;
+}
+.product-form-page__back-link {
+    display: inline-block;
+    margin-bottom: 12px;
+    font-size: 16px;
+    color: var(--color-text);
+    text-decoration: none;
+}
+.product-form-page__title {
+    font-size: 24px;
+    margin: 0;
+}
+.product-form__image-preview-wrap {
+    margin-bottom: 12px;
+}
+.product-form__image-preview {
+    width: 120px;
+    height: 120px;
+    object-fit: cover;
+    border-radius: 8px;
+}
+.product-form__image-preview-placeholder {
+    width: 120px;
+    height: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: #f2f2f2;
+    color: #888888;
+    font-size: 13px;
+}
+input[type="file"] {
+    width: 100%;
+    font-size: 16px;
+    padding: 8px 0;
+}
+.product-form__checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-weight: normal;
+}
+.product-form__checkbox-label input[type="checkbox"] {
+    width: 24px;
+    height: 24px;
 }

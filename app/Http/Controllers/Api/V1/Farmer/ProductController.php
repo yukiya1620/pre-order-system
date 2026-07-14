@@ -22,6 +22,14 @@ class ProductController extends Controller
         return response()->json(['products' => $products]);
     }
 
+    /**
+     * 商品マスタ単体(編集フォームの初期値取得用)。販売設定は含めない。
+     */
+    public function show(Product $product): JsonResponse
+    {
+        return response()->json(['product' => $product->load('category')]);
+    }
+
     public function store(StoreProductRequest $request): JsonResponse
     {
         $product = Product::create([

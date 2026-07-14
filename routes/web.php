@@ -30,3 +30,8 @@ Route::middleware('farmer')->get('/farmer/orders/{order}', [FarmerOrdersControll
 
 // 商品管理(F5)。farmerミドルウェアの考え方はF1と同じ。
 Route::middleware('farmer')->get('/farmer/products', [FarmerProductsController::class, 'index'])->name('farmer.products');
+
+// 商品登録・編集(F6)。新規登録・編集は共通のBlade/JSで、モードのみ切り替える。
+// 存在しない商品idはルートモデルバインディングにより自動的に404になる。
+Route::middleware('farmer')->get('/farmer/products/create', [FarmerProductsController::class, 'create'])->name('farmer.products.create');
+Route::middleware('farmer')->get('/farmer/products/{product}/edit', [FarmerProductsController::class, 'edit'])->name('farmer.products.edit');

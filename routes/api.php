@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\V1\AnnouncementController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\Farmer\AnnouncementController as FarmerAnnouncementController;
+use App\Http\Controllers\Api\V1\Farmer\CategoryController as FarmerCategoryController;
 use App\Http\Controllers\Api\V1\Farmer\DeliveryConfirmationController;
 use App\Http\Controllers\Api\V1\Farmer\OrderController as FarmerOrderController;
 use App\Http\Controllers\Api\V1\Farmer\ProductController as FarmerProductController;
@@ -58,11 +59,15 @@ Route::prefix('v1')->group(function () {
     Route::middleware(['auth:sanctum', 'farmer'])->prefix('farmer')->group(function () {
         // 4.4 商品管理:商品マスタ・販売シーズンの管理
         Route::get('products', [FarmerProductController::class, 'index']);
+        Route::get('products/{product}', [FarmerProductController::class, 'show']);
         Route::post('products', [FarmerProductController::class, 'store']);
         Route::put('products/{product}', [FarmerProductController::class, 'update']);
         Route::post('products/{product}/sales', [ProductSaleController::class, 'store']);
         Route::put('sales/{sale}', [ProductSaleController::class, 'update']);
         Route::put('sales/{sale}/stop', [ProductSaleController::class, 'stop']);
+
+        // カテゴリー一覧(F6の商品登録・編集フォーム用。カテゴリー自体のCRUDは無い)
+        Route::get('categories', [FarmerCategoryController::class, 'index']);
 
         // 4.7 配達確認
         Route::get('delivery-confirmations', [DeliveryConfirmationController::class, 'index']);

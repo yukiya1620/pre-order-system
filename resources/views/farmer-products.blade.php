@@ -3,16 +3,14 @@
 @section('title', '商品管理 | 予約注文システム')
 
 @section('content')
-    <div class="page products-page" data-products-url="{{ url('/api/v1/farmer/products') }}">
+    <div class="page products-page" data-products-url="{{ url('/api/v1/farmer/products') }}" data-product-edit-base-url="{{ url('/farmer/products') }}">
         <header class="products-page__header">
             <a href="{{ route('farmer.home') }}" class="products-page__back-link">◀ もどる</a>
             <h1 class="products-page__title">商品管理</h1>
         </header>
 
         <div class="products-page__unimplemented">
-            <div class="orders-page__unimplemented-item" aria-disabled="true">
-                ＋ 新しい商品を登録 <span class="farmer-home__menu-item-badge">準備中</span>
-            </div>
+            <a href="{{ route('farmer.products.create') }}" class="products-page__new-link">＋ 新しい商品を登録</a>
         </div>
 
         <div class="products-page__filter">

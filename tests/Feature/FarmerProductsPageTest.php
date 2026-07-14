@@ -78,7 +78,7 @@ class FarmerProductsPageTest extends TestCase
         $response->assertSee('非表示');
     }
 
-    public function test_unimplemented_actions_are_disabled_not_links(): void
+    public function test_new_product_link_points_to_create_page(): void
     {
         $farmer = User::factory()->farmer()->create();
 
@@ -86,7 +86,17 @@ class FarmerProductsPageTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('新しい商品を登録');
-        $response->assertSee('準備中');
+        $response->assertSee('href="'.route('farmer.products.create').'"', false);
         $response->assertDontSee('href="#"', false);
+    }
+
+    public function test_page_embeds_product_edit_base_url(): void
+    {
+        $farmer = User::factory()->farmer()->create();
+
+        $response = $this->actingAs($farmer)->get('/farmer/products');
+
+        $response->assertOk();
+        $response->assertSee('data-product-edit-base-url="'.url('/farmer/products').'"', false);
     }
 }

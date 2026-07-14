@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Product;
 use Illuminate\Contracts\View\View;
 
 class FarmerProductsController extends Controller
@@ -13,5 +14,30 @@ class FarmerProductsController extends Controller
     public function index(): View
     {
         return view('farmer-products');
+    }
+
+    /**
+     * 商品登録(F6・新規登録モード)。新規登録・編集は共通のBlade/JSを使い、
+     * モードの違いはdata属性で画面側に渡す。
+     */
+    public function create(): View
+    {
+        return view('farmer-product-form', [
+            'mode' => 'create',
+            'productId' => null,
+        ]);
+    }
+
+    /**
+     * 商品編集(F6・編集モード)。存在しない商品idはルートモデルバインディングにより
+     * 自動的に404になる。初期値の取得は画面側のJavaScriptが
+     * GET /api/v1/farmer/products/{id} を呼んで行う。
+     */
+    public function edit(Product $product): View
+    {
+        return view('farmer-product-form', [
+            'mode' => 'edit',
+            'productId' => $product->id,
+        ]);
     }
 }
