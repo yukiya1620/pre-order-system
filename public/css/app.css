@@ -836,3 +836,105 @@ input[type="file"] {
 .product-resell__previous p {
     margin: 4px 0;
 }
+
+/* 売上確認画面(F8)。他画面のクラスと混ざらないよう sales-page__ / sales-card__ を接頭辞にする */
+.sales-page__header {
+    margin-bottom: 12px;
+}
+.sales-page__back-link {
+    display: inline-block;
+    margin-bottom: 12px;
+    font-size: 16px;
+    color: var(--color-text);
+    text-decoration: none;
+}
+.sales-page__title {
+    font-size: 24px;
+    margin: 0 0 20px;
+}
+.sales-page__section {
+    margin-bottom: 32px;
+}
+.sales-page__section h2 {
+    font-size: 18px;
+    margin: 24px 0 8px;
+}
+.sales-page__section h2:first-child {
+    margin-top: 0;
+}
+.sales-page__note {
+    font-size: 14px;
+    color: #555555;
+    margin: 0 0 12px;
+}
+.sales-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+}
+.sales-card {
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 16px;
+    background: #f9f9f9;
+    text-align: center;
+}
+.sales-card__label {
+    font-size: 14px;
+    color: #555555;
+    margin: 0 0 8px;
+}
+.sales-card__amount {
+    font-size: 22px;
+    font-weight: bold;
+    margin: 0 0 4px;
+    color: var(--color-accent);
+}
+.sales-card__count {
+    font-size: 14px;
+    color: #555555;
+    margin: 0;
+}
+.sales-card--pending {
+    max-width: 240px;
+}
+.sales-breakdown-table,
+.sales-by-product-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 16px;
+}
+.sales-breakdown-table th,
+.sales-breakdown-table td,
+.sales-by-product-table th,
+.sales-by-product-table td {
+    text-align: left;
+    padding: 8px;
+    border-bottom: 1px solid var(--color-border);
+}
+.sales-page__period-buttons {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+.sales-period-button {
+    flex: 1;
+    min-height: 56px;
+    font-size: 18px;
+    font-weight: bold;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+    background: #ffffff;
+    color: var(--color-text);
+    cursor: pointer;
+}
+.sales-period-button--active {
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+    color: #ffffff;
+}
+@media (max-width: 480px) {
+    .sales-cards {
+        grid-template-columns: 1fr;
+    }
+}

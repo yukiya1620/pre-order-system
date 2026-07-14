@@ -4,6 +4,7 @@ use App\Http\Controllers\FarmerDeliveryConfirmationsController;
 use App\Http\Controllers\FarmerHomeController;
 use App\Http\Controllers\FarmerOrdersController;
 use App\Http\Controllers\FarmerProductsController;
+use App\Http\Controllers\FarmerSalesController;
 use App\Http\Controllers\SettingsController;
 use Illuminate\Support\Facades\Route;
 
@@ -38,3 +39,6 @@ Route::middleware('farmer')->get('/farmer/products/{product}/edit', [FarmerProdu
 
 // 再販売設定(F7・新規販売シーズン作成専用)。既存シーズンの編集・停止は今回対応しない。
 Route::middleware('farmer')->get('/farmer/products/{product}/resell', [FarmerProductsController::class, 'resell'])->name('farmer.products.resell');
+
+// 売上確認(F8)。farmerミドルウェアの考え方はF1と同じ。
+Route::middleware('farmer')->get('/farmer/sales', [FarmerSalesController::class, 'index'])->name('farmer.sales');

@@ -43,11 +43,10 @@
                 <span>予約一覧</span>
             </a>
 
-            <div class="farmer-home__menu-item farmer-home__menu-item--disabled" aria-disabled="true">
+            <a href="{{ route('farmer.sales') }}" class="farmer-home__menu-item">
                 <span class="farmer-home__menu-item-icon" aria-hidden="true">💰</span>
                 <span>売上確認</span>
-                <span class="farmer-home__menu-item-badge">準備中</span>
-            </div>
+            </a>
 
             <div class="farmer-home__menu-item farmer-home__menu-item--disabled" aria-disabled="true">
                 <span class="farmer-home__menu-item-icon" aria-hidden="true">📢</span>
