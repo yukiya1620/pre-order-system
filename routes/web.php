@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AuthPageController;
 use App\Http\Controllers\BuyerHomeController;
+use App\Http\Controllers\BuyerProductController;
 use App\Http\Controllers\FarmerAnnouncementsController;
 use App\Http\Controllers\FarmerDeliveryConfirmationsController;
 use App\Http\Controllers\FarmerHomeController;
@@ -11,8 +12,14 @@ use App\Http\Controllers\FarmerSalesController;
 use App\Http\Controllers\SettingsController;
 use Illuminate\Support\Facades\Route;
 
-// 購入者トップ(B3の暫定版)。buyerミドルウェアが未認証→/login、農家→/farmerに振り分ける。
-Route::middleware('buyer')->get('/', [BuyerHomeController::class, 'show'])->name('buyer.home');
+// 購入者トップ(B3)。設計書・GET /products等が認証不要な公開APIであることに合わせ、
+// 未ログインでも閲覧できる(buyerミドルウェアは付けない)。ログイン中の農家だけ
+// Controller内で/farmerへ手動リダイレクトする(EnsureUserIsBuyerはB5以降で使う)。
+Route::get('/', [BuyerHomeController::class, 'show'])->name('buyer.home');
+
+// 商品詳細(B4)。B3と同じ理由で未ログインでも閲覧できる。URLの形はAPI(GET /products/{id})に揃える。
+// 存在しない商品idはルートモデルバインディングにより自動的に404になる。
+Route::get('/products/{productSale}', [BuyerProductController::class, 'show'])->name('products.show');
 
 // 会員登録(B1)・ログイン(B2)。同じController/Blade/JSを共有し、モードだけ切り替える。
 Route::get('/register', [AuthPageController::class, 'register'])->name('register');

@@ -38,6 +38,10 @@ class ProductSale extends Model
         'requires_delivery_confirmation',
     ];
 
+    // 購入者向けAPI(GET /products, GET /products/{id})が配達予定日を必ず返せるよう、
+    // JSONに自動で含める。注文確定時と全く同じ resolveDeliveryDate() を使うため、計算ロジックの重複は無い。
+    protected $appends = ['delivery_date'];
+
     protected function casts(): array
     {
         return [
@@ -111,5 +115,16 @@ class ProductSale extends Model
         }
 
         return $deliveryDate;
+    }
+
+    /**
+     * $appendsでJSONに自動的に含めるための配達予定日(YYYY-MM-DD形式)。
+     * resolveDeliveryDate()をtoDateString()で文字列化するだけなので、
+     * Carbonの標準的なtoJSON()(datetimeキャストの自動シリアライズ)を経由せず、
+     * Order.delivery_dateで起きたようなJST→UTC変換によるズレは発生しない。
+     */
+    public function getDeliveryDateAttribute(): string
+    {
+        return $this->resolveDeliveryDate()->toDateString();
     }
 }
