@@ -5,6 +5,7 @@
     }
 
     var ordersUrl = container.dataset.ordersUrl;
+    var orderDetailBaseUrl = container.dataset.orderDetailBaseUrl;
     var csrfToken = document.querySelector('meta[name="csrf-token"]').content;
     var loadingEl = document.getElementById('orders-loading');
     var generalMessageEl = document.getElementById('orders-message');
@@ -260,11 +261,11 @@
             card.appendChild(completeForm);
         }
 
-        var detailEl = document.createElement('div');
-        detailEl.className = 'order-card__unimplemented';
-        detailEl.setAttribute('aria-disabled', 'true');
-        detailEl.textContent = '注文詳細 (準備中)';
-        card.appendChild(detailEl);
+        var detailLink = document.createElement('a');
+        detailLink.className = 'order-card__detail-link';
+        detailLink.href = orderDetailBaseUrl + '/' + order.id;
+        detailLink.textContent = '注文詳細を見る ▶';
+        card.appendChild(detailLink);
 
         var cardMessageEl = document.createElement('p');
         cardMessageEl.className = 'order-card__message message message-error';

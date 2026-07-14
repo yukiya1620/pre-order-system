@@ -465,10 +465,13 @@ button[type="submit"]:disabled {
     opacity: 0.6;
     cursor: default;
 }
-.order-card__unimplemented {
+.order-card__detail-link {
+    display: block;
     margin-top: 16px;
-    font-size: 14px;
-    color: #888888;
+    font-size: 16px;
+    font-weight: bold;
+    color: var(--color-accent);
+    text-decoration: none;
 }
 .order-card__message {
     margin-top: 12px;
@@ -497,5 +500,72 @@ button[type="submit"]:disabled {
 }
 .orders-pager__indicator {
     font-size: 16px;
+    font-weight: bold;
+}
+
+/* 注文詳細画面(F4)。他画面のクラスと混ざらないよう order-detail-page__ / order-detail__ を接頭辞にする */
+.order-detail-page__header {
+    margin-bottom: 20px;
+}
+.order-detail-page__back-link {
+    display: inline-block;
+    margin-bottom: 12px;
+    font-size: 16px;
+    color: var(--color-text);
+    text-decoration: none;
+}
+.order-detail-page__title {
+    font-size: 24px;
+    margin: 0;
+}
+.order-detail__heading-line {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+.order-detail__order-number {
+    font-size: 18px;
+    font-weight: bold;
+}
+.order-detail__proxy-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 14px;
+    font-weight: bold;
+    background: #fff3e0;
+    color: #ef6c00;
+}
+.order-detail__section {
+    margin-bottom: 24px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--color-border);
+}
+.order-detail__section:last-child {
+    border-bottom: none;
+}
+.order-detail__section h2 {
+    font-size: 18px;
+    margin: 0 0 12px;
+}
+.order-detail__section p {
+    margin: 0 0 8px;
+}
+.order-detail__items-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 16px;
+}
+.order-detail__items-table th,
+.order-detail__items-table td {
+    text-align: left;
+    padding: 8px;
+    border-bottom: 1px solid var(--color-border);
+}
+.order-detail__total {
+    margin-top: 12px;
+    font-size: 18px;
     font-weight: bold;
 }

@@ -3,7 +3,7 @@
 @section('title', '予約一覧 | 予約注文システム')
 
 @section('content')
-    <div class="page orders-page" data-orders-url="{{ url('/api/v1/farmer/orders') }}">
+    <div class="page orders-page" data-orders-url="{{ url('/api/v1/farmer/orders') }}" data-order-detail-base-url="{{ url('/farmer/orders') }}">
         <header class="orders-page__header">
             <a href="{{ route('farmer.home') }}" class="orders-page__back-link">◀ もどる</a>
             <h1 class="orders-page__title">予約一覧</h1>

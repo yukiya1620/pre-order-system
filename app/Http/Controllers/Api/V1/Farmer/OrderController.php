@@ -50,11 +50,12 @@ class OrderController extends Controller
     /**
      * 注文詳細。農家は全購入者の注文を見る役割なので、購入者向けshow()と違い
      * 「自分の注文かどうか」のチェックは行わない(routes/api.phpのfarmerミドルウェアで守る)。
+     * userはF4画面表示に必要なid・name・phone_numberだけに絞る(email・notify設定等は不要)。
      */
     public function show(Order $order): JsonResponse
     {
         return response()->json([
-            'order' => $order->load(['user', 'orderItems.productSale.product', 'deliveryConfirmation']),
+            'order' => $order->load(['user:id,name,phone_number', 'orderItems.productSale.product', 'deliveryConfirmation']),
         ]);
     }
 
