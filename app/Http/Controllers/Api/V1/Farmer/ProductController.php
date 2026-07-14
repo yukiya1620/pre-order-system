@@ -11,11 +11,13 @@ use Illuminate\Http\JsonResponse;
 class ProductController extends Controller
 {
     /**
-     * 商品マスタ一覧(過去に使ったものを含む全件)
+     * 商品マスタ一覧(過去に使ったものを含む全件)。
+     * 各商品には最新の販売シーズン(latest_product_sale)を1件だけ含める(無ければnull)。
+     * F5一覧で「今の販売設定」を表示するために使う。
      */
     public function index(): JsonResponse
     {
-        $products = Product::with('category')->orderBy('created_at', 'desc')->get();
+        $products = Product::with(['category', 'latestProductSale'])->orderBy('created_at', 'desc')->get();
 
         return response()->json(['products' => $products]);
     }

@@ -86,6 +86,16 @@ class FarmerHomePageTest extends TestCase
         $response->assertSee('href="'.route('farmer.orders').'"', false);
     }
 
+    public function test_farmer_home_has_link_to_products(): void
+    {
+        $farmer = User::factory()->farmer()->create();
+
+        $response = $this->actingAs($farmer)->get('/farmer');
+
+        $response->assertOk();
+        $response->assertSee('href="'.route('farmer.products').'"', false);
+    }
+
     public function test_farmer_home_shows_main_menu_labels(): void
     {
         $farmer = User::factory()->farmer()->create();

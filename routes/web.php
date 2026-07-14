@@ -3,6 +3,7 @@
 use App\Http\Controllers\FarmerDeliveryConfirmationsController;
 use App\Http\Controllers\FarmerHomeController;
 use App\Http\Controllers\FarmerOrdersController;
+use App\Http\Controllers\FarmerProductsController;
 use App\Http\Controllers\SettingsController;
 use Illuminate\Support\Facades\Route;
 
@@ -26,3 +27,6 @@ Route::middleware('farmer')->get('/farmer/orders', [FarmerOrdersController::clas
 
 // 注文詳細(F4)。存在しない注文idはルートモデルバインディングにより自動的に404になる。
 Route::middleware('farmer')->get('/farmer/orders/{order}', [FarmerOrdersController::class, 'show'])->name('farmer.orders.show');
+
+// 商品管理(F5)。farmerミドルウェアの考え方はF1と同じ。
+Route::middleware('farmer')->get('/farmer/products', [FarmerProductsController::class, 'index'])->name('farmer.products');

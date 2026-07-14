@@ -37,4 +37,13 @@ class Product extends Model
     {
         return $this->hasMany(ProductSale::class);
     }
+
+    /**
+     * 最新の販売シーズン(sale_start_date降順、同日ならid降順で1件)。
+     * 商品管理一覧(F5)で「今の販売設定」を表示するために使う。無ければnull。
+     */
+    public function latestProductSale(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(ProductSale::class)->latestOfMany(['sale_start_date', 'id']);
+    }
 }
