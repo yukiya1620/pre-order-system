@@ -94,7 +94,7 @@ class FarmerOrdersPageTest extends TestCase
         $response->assertSee('id="orders-page-indicator"', false);
     }
 
-    public function test_unimplemented_phone_order_is_disabled_not_a_link(): void
+    public function test_phone_order_links_to_order_form(): void
     {
         $farmer = User::factory()->farmer()->create();
 
@@ -102,7 +102,7 @@ class FarmerOrdersPageTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('電話注文');
-        $response->assertSee('準備中');
+        $response->assertSee('href="'.route('farmer.orders.create').'"', false);
         $response->assertDontSee('href="#"', false);
     }
 }

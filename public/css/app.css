@@ -345,12 +345,12 @@ button[type="submit"]:disabled {
     gap: 8px;
     min-height: 56px;
     padding: 0 16px;
-    border: 1px solid var(--color-border);
     border-radius: 8px;
-    background: #f2f2f2;
-    color: #888888;
+    background: var(--color-accent);
+    color: #ffffff;
     font-size: 16px;
     font-weight: bold;
+    text-decoration: none;
 }
 .orders-page__filter {
     display: flex;
@@ -1092,4 +1092,64 @@ input[type="file"] {
 .announcements-pager__indicator {
     font-size: 16px;
     font-weight: bold;
+}
+
+/* 電話注文の代理入力画面(F10)。他画面のクラスと混ざらないよう order-form-page__ / order-form__ を接頭辞にする */
+.order-form-page__header {
+    margin-bottom: 12px;
+}
+.order-form-page__back-link {
+    display: inline-block;
+    margin-bottom: 12px;
+    font-size: 16px;
+    color: var(--color-text);
+    text-decoration: none;
+}
+.order-form-page__title {
+    font-size: 24px;
+    margin: 0 0 20px;
+}
+.order-form__registration-note {
+    padding: 12px 16px;
+    border-radius: 8px;
+    background: #fff3e0;
+    color: #ef6c00;
+    font-size: 15px;
+    margin-bottom: 16px;
+}
+.order-form__estimate {
+    font-size: 15px;
+    color: #555555;
+    margin: -8px 0 20px;
+}
+.order-form__success {
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 20px;
+}
+.order-form__success p {
+    margin: 8px 0;
+}
+.order-form__success-links {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 16px 0;
+}
+.order-form__success-links a {
+    font-size: 16px;
+    font-weight: bold;
+    color: var(--color-accent);
+    text-decoration: none;
+}
+#order-form-continue-button {
+    display: block;
+    width: 100%;
+    min-height: 56px;
+    font-size: 18px;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+    background: #ffffff;
+    color: var(--color-text);
+    cursor: pointer;
 }

@@ -10,9 +10,9 @@
         </header>
 
         <div class="orders-page__unimplemented">
-            <div class="orders-page__unimplemented-item" aria-disabled="true">
-                電話注文 <span class="farmer-home__menu-item-badge">準備中</span>
-            </div>
+            <a href="{{ route('farmer.orders.create') }}" class="orders-page__unimplemented-item">
+                ☎ 電話注文
+            </a>
         </div>
 
         <div class="orders-page__filter">

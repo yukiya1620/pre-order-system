@@ -27,6 +27,10 @@ Route::middleware('farmer')->get('/farmer/delivery-confirmations', [FarmerDelive
 // 予約一覧(F3)。farmerミドルウェアの考え方はF1と同じ。
 Route::middleware('farmer')->get('/farmer/orders', [FarmerOrdersController::class, 'index'])->name('farmer.orders');
 
+// 電話注文の代理入力(F10)。「create」が{order}に誤って束縛されないよう、
+// 必ず /farmer/orders/{order} より前に登録する。
+Route::middleware('farmer')->get('/farmer/orders/create', [FarmerOrdersController::class, 'create'])->name('farmer.orders.create');
+
 // 注文詳細(F4)。存在しない注文idはルートモデルバインディングにより自動的に404になる。
 Route::middleware('farmer')->get('/farmer/orders/{order}', [FarmerOrdersController::class, 'show'])->name('farmer.orders.show');
 

@@ -25,4 +25,13 @@ class FarmerOrdersController extends Controller
     {
         return view('farmer-order-detail', ['orderId' => $order->id]);
     }
+
+    /**
+     * 電話注文の代理入力(F10)。表示専用画面。購入者検索・簡易登録・注文確定は
+     * 画面側のJavaScriptが既存の POST /api/v1/farmer/orders を呼んで行う。
+     */
+    public function create(): View
+    {
+        return view('farmer-order-form');
+    }
 }
