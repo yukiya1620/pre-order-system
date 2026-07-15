@@ -10,11 +10,11 @@ class SettingsPageTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_guest_cannot_access_settings_page(): void
+    public function test_guest_is_redirected_to_login(): void
     {
         $response = $this->get('/settings');
 
-        $response->assertStatus(401);
+        $response->assertRedirect(route('login'));
     }
 
     public function test_buyer_can_access_settings_page(): void
@@ -59,15 +59,35 @@ class SettingsPageTest extends TestCase
         $response->assertDontSee('name="role"', false);
     }
 
-    public function test_notify_settings_are_not_present(): void
+    public function test_notify_settings_checkboxes_are_present(): void
     {
         $user = User::factory()->create();
 
         $response = $this->actingAs($user)->get('/settings');
 
         $response->assertOk();
-        $response->assertDontSee('notify_by_email');
-        $response->assertDontSee('notify_by_sms');
+        $response->assertSee('id="notify_by_email"', false);
+        $response->assertSee('id="notify_by_sms"', false);
+    }
+
+    public function test_buyer_back_link_points_to_buyer_home(): void
+    {
+        $buyer = User::factory()->create();
+
+        $response = $this->actingAs($buyer)->get('/settings');
+
+        $response->assertOk();
+        $response->assertSee('href="'.route('buyer.home').'"', false);
+    }
+
+    public function test_farmer_back_link_points_to_farmer_home(): void
+    {
+        $farmer = User::factory()->farmer()->create();
+
+        $response = $this->actingAs($farmer)->get('/settings');
+
+        $response->assertOk();
+        $response->assertSee('href="'.route('farmer.home').'"', false);
     }
 
     public function test_common_stylesheet_is_loaded(): void

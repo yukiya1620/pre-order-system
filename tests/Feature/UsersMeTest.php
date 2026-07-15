@@ -143,8 +143,6 @@ class UsersMeTest extends TestCase
             'phone_number' => '09011112222',
             'role' => User::ROLE_BUYER,
             'is_active' => true,
-            'notify_by_email' => false,
-            'notify_by_sms' => false,
         ]);
         Sanctum::actingAs($user);
 
@@ -157,8 +155,6 @@ class UsersMeTest extends TestCase
             'is_active' => false,
             'password' => 'new-password',
             'id' => 9999,
-            'notify_by_email' => true,
-            'notify_by_sms' => true,
         ]);
 
         $response->assertOk();
@@ -169,8 +165,6 @@ class UsersMeTest extends TestCase
         $this->assertTrue($user->is_active);
         $this->assertNotEquals(9999, $user->id);
         $this->assertTrue(Hash::check('password', $user->password));
-        $this->assertFalse($user->notify_by_email);
-        $this->assertFalse($user->notify_by_sms);
     }
 
     public function test_name_only_update_keeps_other_fields(): void
@@ -228,13 +222,89 @@ class UsersMeTest extends TestCase
 
         $response->assertOk()
             ->assertJsonStructure([
-                'user' => ['id', 'name', 'email', 'phone_number', 'address', 'role', 'is_active'],
+                'user' => ['id', 'name', 'email', 'phone_number', 'address', 'role', 'is_active', 'notify_by_email', 'notify_by_sms'],
             ])
             ->assertJsonMissingPath('user.password')
-            ->assertJsonMissingPath('user.notify_by_email')
-            ->assertJsonMissingPath('user.notify_by_sms')
             ->assertJsonMissingPath('user.created_at')
             ->assertJsonMissingPath('user.updated_at');
+    }
+
+    // === 通知方法の設定(B9) ===
+
+    public function test_notify_by_email_can_be_enabled_when_email_is_registered(): void
+    {
+        $user = User::factory()->create(['email' => 'me@example.com', 'notify_by_email' => false]);
+        Sanctum::actingAs($user);
+
+        $response = $this->putJson('/api/v1/users/me', [
+            'name' => $user->name,
+            'address' => $user->address,
+            'email' => 'me@example.com',
+            'notify_by_email' => true,
+        ]);
+
+        $response->assertOk()->assertJsonPath('user.notify_by_email', true);
+        $this->assertTrue($user->fresh()->notify_by_email);
+    }
+
+    public function test_notify_by_sms_can_be_enabled_independently_of_email(): void
+    {
+        $user = User::factory()->create(['email' => null, 'notify_by_sms' => false]);
+        Sanctum::actingAs($user);
+
+        $response = $this->putJson('/api/v1/users/me', [
+            'name' => $user->name,
+            'address' => $user->address,
+            'notify_by_sms' => true,
+        ]);
+
+        $response->assertOk()->assertJsonPath('user.notify_by_sms', true);
+        $this->assertTrue($user->fresh()->notify_by_sms);
+    }
+
+    public function test_enabling_notify_by_email_without_registered_email_returns_422(): void
+    {
+        $user = User::factory()->create(['email' => null]);
+        Sanctum::actingAs($user);
+
+        $response = $this->putJson('/api/v1/users/me', [
+            'name' => $user->name,
+            'address' => $user->address,
+            'notify_by_email' => true,
+        ]);
+
+        $response->assertStatus(422)->assertJsonValidationErrors('notify_by_email');
+        $this->assertFalse($user->fresh()->notify_by_email);
+    }
+
+    public function test_enabling_notify_by_email_while_clearing_email_in_same_request_returns_422(): void
+    {
+        $user = User::factory()->create(['email' => 'me@example.com']);
+        Sanctum::actingAs($user);
+
+        $response = $this->putJson('/api/v1/users/me', [
+            'name' => $user->name,
+            'address' => $user->address,
+            'email' => '',
+            'notify_by_email' => true,
+        ]);
+
+        $response->assertStatus(422)->assertJsonValidationErrors('notify_by_email');
+    }
+
+    public function test_notify_fields_omitted_keep_existing_value(): void
+    {
+        $user = User::factory()->create(['notify_by_email' => false, 'notify_by_sms' => true]);
+        Sanctum::actingAs($user);
+
+        $response = $this->putJson('/api/v1/users/me', [
+            'name' => '通知設定は送らない更新',
+            'address' => $user->address,
+        ]);
+
+        $response->assertOk();
+        $this->assertFalse($user->fresh()->notify_by_email);
+        $this->assertTrue($user->fresh()->notify_by_sms);
     }
 
     public function test_unauthenticated_put_returns_401(): void

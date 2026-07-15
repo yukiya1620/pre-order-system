@@ -4,7 +4,10 @@
 
 @section('content')
     <div class="page">
-        <h1>設定</h1>
+        <header class="settings-page__header">
+            <a href="{{ Auth::user()->role === 'farmer' ? route('farmer.home') : route('buyer.home') }}" class="settings-page__back-link">◀ もどる</a>
+            <h1>設定</h1>
+        </header>
 
         <p id="loading-indicator">読み込み中です…</p>
 
@@ -39,6 +42,23 @@
             <div class="field">
                 <label>ご利用区分</label>
                 <span id="role" class="readonly-value"></span>
+            </div>
+
+            <div class="field">
+                <label class="settings-page__checkbox-label">
+                    <input type="checkbox" id="notify_by_email" name="notify_by_email">
+                    メールで通知を受け取る
+                </label>
+                <p class="field-hint">利用するにはメールアドレスの登録が必要です。</p>
+                <p id="notify_by_email-error" class="field-error" hidden></p>
+            </div>
+
+            <div class="field">
+                <label class="settings-page__checkbox-label">
+                    <input type="checkbox" id="notify_by_sms" name="notify_by_sms">
+                    SMSで通知を受け取る
+                </label>
+                <p id="notify_by_sms-error" class="field-error" hidden></p>
             </div>
 
             <button type="submit" id="save-button">保存する</button>

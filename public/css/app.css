@@ -1837,3 +1837,25 @@ input[type="file"] {
     opacity: 0.6;
     cursor: default;
 }
+
+/* 設定画面(B9・F1共通)。他画面のクラスと混ざらないよう settings-page__ を接頭辞にする */
+.settings-page__header {
+    margin-bottom: 12px;
+}
+.settings-page__back-link {
+    display: inline-block;
+    margin-bottom: 12px;
+    font-size: 16px;
+    color: var(--color-text);
+    text-decoration: none;
+}
+.settings-page__checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-weight: normal;
+}
+.settings-page__checkbox-label input[type="checkbox"] {
+    width: 24px;
+    height: 24px;
+}

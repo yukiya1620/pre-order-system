@@ -19,7 +19,7 @@
     }
 
     function clearFieldErrors() {
-        ['name', 'email', 'address'].forEach(function (field) {
+        ['name', 'email', 'address', 'notify_by_email', 'notify_by_sms'].forEach(function (field) {
             var el = document.getElementById(field + '-error');
             el.textContent = '';
             el.hidden = true;
@@ -43,6 +43,8 @@
         document.getElementById('address').value = user.address || '';
         document.getElementById('phone_number').textContent = user.phone_number || '';
         document.getElementById('role').textContent = roleLabels[user.role] || user.role || '';
+        document.getElementById('notify_by_email').checked = !!user.notify_by_email;
+        document.getElementById('notify_by_sms').checked = !!user.notify_by_sms;
     }
 
     function loadProfile() {
@@ -87,7 +89,9 @@
         var payload = {
             name: document.getElementById('name').value,
             email: document.getElementById('email').value,
-            address: document.getElementById('address').value
+            address: document.getElementById('address').value,
+            notify_by_email: document.getElementById('notify_by_email').checked,
+            notify_by_sms: document.getElementById('notify_by_sms').checked
         };
 
         fetch(usersMeUrl, {
