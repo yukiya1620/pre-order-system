@@ -13,6 +13,8 @@
             <nav class="buyer-home-page__header-nav" aria-label="アカウント">
                 @auth
                     <span class="buyer-home-page__user-name">{{ Auth::user()->name }} 様</span>
+                    <a href="{{ route('orders.index') }}" class="buyer-home-page__nav-link">📦 注文履歴</a>
+                    <a href="{{ route('notifications.index') }}" class="buyer-home-page__nav-link">🔔 通知</a>
                     <a href="{{ route('settings') }}" class="buyer-home-page__settings-link">⚙ 設定</a>
                     <button type="button" id="buyer-home-logout-button" class="buyer-home-page__logout-button">ログアウト</button>
                 @else

@@ -11,6 +11,8 @@ use App\Http\Controllers\FarmerProductsController;
 use App\Http\Controllers\FarmerSalesController;
 use App\Http\Controllers\OrderCompleteController;
 use App\Http\Controllers\OrderConfirmController;
+use App\Http\Controllers\NotificationsController;
+use App\Http\Controllers\OrderHistoryController;
 use App\Http\Controllers\SettingsController;
 use Illuminate\Support\Facades\Route;
 
@@ -31,6 +33,14 @@ Route::get('/login', [AuthPageController::class, 'login'])->name('login');
 // (ログインしていない/農家アカウントでは注文操作に進めない)。
 Route::middleware('buyer')->get('/orders/confirm', [OrderConfirmController::class, 'show'])->name('orders.confirm');
 Route::middleware('buyer')->get('/orders/{order}/complete', [OrderCompleteController::class, 'show'])->name('orders.complete');
+
+// 注文履歴(B7)・購入者向け注文詳細。「confirm」が{order}に誤って束縛されないよう、
+// 必ず /orders/confirm より後に登録する(F10の/farmer/orders/createと同じ注意点)。
+Route::middleware('buyer')->get('/orders', [OrderHistoryController::class, 'index'])->name('orders.index');
+Route::middleware('buyer')->get('/orders/{order}', [OrderHistoryController::class, 'show'])->name('orders.show');
+
+// 通知一覧(B8)。
+Route::middleware('buyer')->get('/notifications', [NotificationsController::class, 'index'])->name('notifications.index');
 
 // 設定画面(B9・F1「設定」に対応)。購入者・農家共通で、表示中の登録情報は
 // 画面側のJavaScriptがGET/PUT /api/v1/users/meを呼んで取得・更新する。

@@ -238,10 +238,14 @@ class OrderApiTest extends TestCase
 
     // === show / ownership ===
 
+    private int $orderCounter = 0;
+
     private function createOrderFor(User $buyer, ProductSale $sale): Order
     {
+        $this->orderCounter++;
+
         $order = Order::create([
-            'order_number' => 'TEST-'.$buyer->id,
+            'order_number' => sprintf('TEST-%04d', $this->orderCounter),
             'user_id' => $buyer->id,
             'status' => Order::STATUS_RECEIVED,
             'total_amount' => 500,
@@ -295,5 +299,130 @@ class OrderApiTest extends TestCase
         $response = $this->actingAs($otherBuyer)->postJson('/api/v1/orders/'.$order->id.'/reorder-preview');
 
         $response->assertStatus(403);
+    }
+
+    // === index (注文履歴・年月絞り込み) ===
+
+    public function test_guest_cannot_list_orders(): void
+    {
+        $response = $this->getJson('/api/v1/orders');
+
+        $response->assertStatus(401);
+    }
+
+    public function test_farmer_cannot_list_orders(): void
+    {
+        $farmer = User::factory()->farmer()->create();
+
+        $response = $this->actingAs($farmer)->getJson('/api/v1/orders');
+
+        $response->assertStatus(403);
+    }
+
+    public function test_index_without_params_returns_recent_six_months_only(): void
+    {
+        $sale = $this->createSale();
+        $buyer = User::factory()->create();
+        $recent = $this->createOrderFor($buyer, $sale);
+        $recent->forceFill(['created_at' => now()->subMonths(2)])->save();
+
+        $old = $this->createOrderFor($buyer, $sale);
+        $old->forceFill(['created_at' => now()->subMonths(8)])->save();
+
+        $response = $this->actingAs($buyer)->getJson('/api/v1/orders');
+
+        $response->assertOk();
+        $response->assertJsonCount(1, 'orders');
+        $response->assertJsonPath('orders.0.id', $recent->id);
+    }
+
+    public function test_index_with_year_returns_all_orders_in_that_year(): void
+    {
+        $sale = $this->createSale();
+        $buyer = User::factory()->create();
+
+        $inYear = $this->createOrderFor($buyer, $sale);
+        $inYear->forceFill(['created_at' => '2024-03-01 10:00:00'])->save();
+
+        $outsideYear = $this->createOrderFor($buyer, $sale);
+        $outsideYear->forceFill(['created_at' => '2023-12-01 10:00:00'])->save();
+
+        $response = $this->actingAs($buyer)->getJson('/api/v1/orders?year=2024');
+
+        $response->assertOk();
+        $response->assertJsonCount(1, 'orders');
+        $response->assertJsonPath('orders.0.id', $inYear->id);
+    }
+
+    public function test_index_with_year_and_month_returns_only_that_month(): void
+    {
+        $sale = $this->createSale();
+        $buyer = User::factory()->create();
+
+        $target = $this->createOrderFor($buyer, $sale);
+        $target->forceFill(['created_at' => '2024-03-15 10:00:00'])->save();
+
+        $otherMonth = $this->createOrderFor($buyer, $sale);
+        $otherMonth->forceFill(['created_at' => '2024-04-15 10:00:00'])->save();
+
+        $response = $this->actingAs($buyer)->getJson('/api/v1/orders?year=2024&month=3');
+
+        $response->assertOk();
+        $response->assertJsonCount(1, 'orders');
+        $response->assertJsonPath('orders.0.id', $target->id);
+    }
+
+    public function test_index_only_returns_own_orders(): void
+    {
+        $sale = $this->createSale();
+        $owner = User::factory()->create();
+        $otherBuyer = User::factory()->create();
+        $this->createOrderFor($owner, $sale);
+
+        $response = $this->actingAs($otherBuyer)->getJson('/api/v1/orders');
+
+        $response->assertOk();
+        $response->assertJsonCount(0, 'orders');
+    }
+
+    // === reorder-preview: reorder_params ===
+
+    public function test_reorder_preview_includes_explicit_reorder_params(): void
+    {
+        $sale = $this->createSale();
+        $buyer = User::factory()->create();
+        $order = $this->createOrderFor($buyer, $sale);
+        $order->forceFill(['delivery_time_slot' => '午後'])->save();
+
+        $response = $this->actingAs($buyer)->postJson('/api/v1/orders/'.$order->id.'/reorder-preview');
+
+        $response->assertOk();
+        $response->assertJsonPath('reorder_params.product_sale_id', $sale->id);
+        $response->assertJsonPath('reorder_params.quantity', 1);
+        $response->assertJsonPath('reorder_params.delivery_time_slot', '午後');
+    }
+
+    public function test_reorder_preview_not_available_when_product_no_longer_on_sale(): void
+    {
+        $sale = $this->createSale(['status' => ProductSale::STATUS_ENDED]);
+        $buyer = User::factory()->create();
+        $order = $this->createOrderFor($buyer, $sale);
+
+        $response = $this->actingAs($buyer)->postJson('/api/v1/orders/'.$order->id.'/reorder-preview');
+
+        $response->assertStatus(422);
+        $response->assertJsonPath('error.code', 'NOT_AVAILABLE');
+    }
+
+    public function test_reorder_preview_out_of_stock(): void
+    {
+        $sale = $this->createSale(['stock_quantity' => 0]);
+        $buyer = User::factory()->create();
+        $order = $this->createOrderFor($buyer, $sale);
+
+        $response = $this->actingAs($buyer)->postJson('/api/v1/orders/'.$order->id.'/reorder-preview');
+
+        $response->assertStatus(422);
+        $response->assertJsonPath('error.code', 'OUT_OF_STOCK');
     }
 }

@@ -88,6 +88,13 @@ class OrderController extends Controller
                 $order->delivery_time_slot,
                 Auth::user()
             ),
+            // B7(注文履歴)・注文詳細画面が /orders/confirm への遷移URLを組み立てるために使う。
+            // order_previewの中の同名項目に依存させず、明示的な契約として別キーで返す。
+            'reorder_params' => [
+                'product_sale_id' => $productSale->id,
+                'quantity' => $orderItem->quantity,
+                'delivery_time_slot' => $order->delivery_time_slot,
+            ],
         ]);
     }
 

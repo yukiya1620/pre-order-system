@@ -73,6 +73,26 @@ class BuyerHomePageTest extends TestCase
         $response->assertSee('href="'.route('settings').'"', false);
     }
 
+    public function test_authenticated_buyer_sees_order_history_and_notifications_links(): void
+    {
+        $buyer = User::factory()->create();
+
+        $response = $this->actingAs($buyer)->get('/');
+
+        $response->assertOk();
+        $response->assertSee('href="'.route('orders.index').'"', false);
+        $response->assertSee('href="'.route('notifications.index').'"', false);
+    }
+
+    public function test_guest_does_not_see_order_history_and_notifications_links(): void
+    {
+        $response = $this->get('/');
+
+        $response->assertOk();
+        $response->assertDontSee('href="'.route('orders.index').'"', false);
+        $response->assertDontSee('href="'.route('notifications.index').'"', false);
+    }
+
     public function test_guest_sees_login_and_register_links(): void
     {
         $response = $this->get('/');

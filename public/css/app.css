@@ -1171,6 +1171,7 @@ input[type="file"] {
 .buyer-home-page__user-name {
     font-size: 16px;
 }
+.buyer-home-page__nav-link,
 .buyer-home-page__settings-link,
 .buyer-home-page__login-link,
 .buyer-home-page__register-link {
@@ -1608,4 +1609,231 @@ input[type="file"] {
     font-weight: bold;
     color: var(--color-accent);
     text-decoration: none;
+}
+
+/* 注文履歴(B7)。他画面のクラスと混ざらないよう order-history-page__ / order-history-card__ を接頭辞にする */
+.order-history-page__header {
+    margin-bottom: 12px;
+}
+.order-history-page__back-link {
+    display: inline-block;
+    margin-bottom: 12px;
+    font-size: 16px;
+    color: var(--color-text);
+    text-decoration: none;
+}
+.order-history-page__title {
+    font-size: 22px;
+    margin: 0;
+}
+.order-history-page__filter {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+.order-history-page__filter label {
+    margin-bottom: 0;
+    white-space: nowrap;
+}
+.order-history-empty {
+    padding: 16px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: #f9f9f9;
+    text-align: center;
+}
+.order-history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+.order-history-card {
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 16px;
+    background: #ffffff;
+}
+.order-history-card__date {
+    font-size: 18px;
+    font-weight: bold;
+    margin: 0 0 8px;
+}
+.order-history-card__number,
+.order-history-card__items {
+    margin: 0 0 8px;
+    color: #555555;
+}
+.order-history-card__amount {
+    font-size: 20px;
+    font-weight: bold;
+    margin: 8px 0;
+}
+.order-history-card__actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 12px;
+}
+.order-history-card__detail-link {
+    display: block;
+    text-align: center;
+    min-height: 48px;
+    line-height: 48px;
+    font-size: 16px;
+    font-weight: bold;
+    color: var(--color-accent);
+    text-decoration: none;
+    border: 1px solid var(--color-accent);
+    border-radius: 8px;
+}
+.order-history-card__reorder-button {
+    display: block;
+    width: 100%;
+    min-height: 48px;
+    font-size: 16px;
+    font-weight: bold;
+    color: #ffffff;
+    background: var(--color-accent);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+}
+.order-history-card__reorder-button:disabled {
+    background: #9e9e9e;
+    cursor: default;
+}
+.order-history-card__message {
+    margin-top: 12px;
+}
+
+/* 購入者向け注文詳細の追加要素(構造自体はF4の.order-detail-page__ / .order-detail__を流用) */
+.order-detail__reorder-button {
+    display: block;
+    width: 100%;
+    min-height: 56px;
+    font-size: 18px;
+    font-weight: bold;
+    color: #ffffff;
+    background: var(--color-accent);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-top: 20px;
+}
+.order-detail__reorder-button:disabled {
+    background: #9e9e9e;
+    cursor: default;
+}
+
+/* 通知一覧(B8)。他画面のクラスと混ざらないよう notifications-page__ / notification-card__ を接頭辞にする */
+.notifications-page__header {
+    margin-bottom: 12px;
+}
+.notifications-page__back-link {
+    display: inline-block;
+    margin-bottom: 12px;
+    font-size: 16px;
+    color: var(--color-text);
+    text-decoration: none;
+}
+.notifications-page__title {
+    font-size: 22px;
+    margin: 0;
+}
+.notifications-page__mark-all-button {
+    display: block;
+    width: 100%;
+    min-height: 48px;
+    font-size: 16px;
+    font-weight: bold;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+    background: #ffffff;
+    color: var(--color-text);
+    cursor: pointer;
+    margin-bottom: 20px;
+}
+.notifications-page__mark-all-button:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+.notifications-empty {
+    padding: 16px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: #f9f9f9;
+    text-align: center;
+}
+.notifications-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+.notification-card {
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 16px;
+    background: #ffffff;
+}
+.notification-card--unread {
+    border-color: var(--color-accent);
+    background: #f3fbf3;
+}
+.notification-card__title-line {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0 0 8px;
+}
+.notification-card__title {
+    font-size: 18px;
+    font-weight: bold;
+}
+.notification-card__unread-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: bold;
+    background: var(--color-accent);
+    color: #ffffff;
+}
+.notification-card__body {
+    margin: 0 0 8px;
+    white-space: pre-wrap;
+}
+.notification-card__date {
+    font-size: 14px;
+    color: #555555;
+    margin: 0 0 12px;
+}
+.notification-card__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.notification-card__actions button {
+    min-height: 44px;
+    padding: 0 16px;
+    font-size: 15px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+.notification-card__view-button {
+    border: 1px solid var(--color-accent);
+    background: #ffffff;
+    color: var(--color-accent);
+    font-weight: bold;
+}
+.notification-card__read-button {
+    border: 1px solid var(--color-border);
+    background: #ffffff;
+    color: var(--color-text);
+}
+.notification-card__read-button:disabled {
+    opacity: 0.6;
+    cursor: default;
 }

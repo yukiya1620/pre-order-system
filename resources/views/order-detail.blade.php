@@ -1,0 +1,56 @@
+@extends('layouts.app')
+
+@section('title', '注文詳細 | 予約注文システム')
+
+@section('content')
+    <div class="page order-detail-page"
+         data-order-url="{{ url('/api/v1/orders/'.$orderId) }}"
+         data-reorder-preview-url="{{ url('/api/v1/orders/'.$orderId.'/reorder-preview') }}"
+         data-order-confirm-base-url="{{ url('/orders/confirm') }}">
+        <header class="order-detail-page__header">
+            <a href="{{ route('orders.index') }}" class="order-detail-page__back-link">◀ 注文履歴へ戻る</a>
+            <h1 class="order-detail-page__title">注文詳細</h1>
+        </header>
+
+        <p id="order-detail-loading">読み込み中です…</p>
+
+        <p id="order-detail-message" class="message message-error" hidden></p>
+
+        <div id="order-detail-content" hidden>
+            <p class="order-detail__heading-line">
+                <span id="detail-order-number" class="order-detail__order-number"></span>
+                <span id="detail-status-badge" class="order-card__status-badge"></span>
+            </p>
+
+            <section class="order-detail__section">
+                <h2>配達情報</h2>
+                <p>配達予定日: <span id="detail-delivery-date"></span></p>
+                <p>配達時間帯: <span id="detail-delivery-time-slot"></span></p>
+                <p>配達先: <span id="detail-delivery-address"></span></p>
+            </section>
+
+            <section class="order-detail__section">
+                <h2>商品明細</h2>
+                <table class="order-detail__items-table">
+                    <thead>
+                        <tr>
+                            <th>商品名</th>
+                            <th>数量</th>
+                            <th>単価</th>
+                            <th>小計</th>
+                        </tr>
+                    </thead>
+                    <tbody id="detail-items-body"></tbody>
+                </table>
+                <p class="order-detail__total">合計金額: <span id="detail-total-amount"></span></p>
+            </section>
+
+            <p id="order-detail-reorder-message" class="message message-error" hidden></p>
+            <button type="button" id="order-detail-reorder-button" class="order-detail__reorder-button">前回と同じ内容で注文</button>
+        </div>
+    </div>
+@endsection
+
+@push('scripts')
+    <script src="{{ asset('js/order-detail.js') }}" defer></script>
+@endpush
