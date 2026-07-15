@@ -9,6 +9,8 @@ use App\Http\Controllers\FarmerHomeController;
 use App\Http\Controllers\FarmerOrdersController;
 use App\Http\Controllers\FarmerProductsController;
 use App\Http\Controllers\FarmerSalesController;
+use App\Http\Controllers\OrderCompleteController;
+use App\Http\Controllers\OrderConfirmController;
 use App\Http\Controllers\SettingsController;
 use Illuminate\Support\Facades\Route;
 
@@ -24,6 +26,11 @@ Route::get('/products/{productSale}', [BuyerProductController::class, 'show'])->
 // 会員登録(B1)・ログイン(B2)。同じController/Blade/JSを共有し、モードだけ切り替える。
 Route::get('/register', [AuthPageController::class, 'register'])->name('register');
 Route::get('/login', [AuthPageController::class, 'login'])->name('login');
+
+// 注文内容の確認(B5)・注文完了(B6)。EnsureUserIsBuyerを初めて実ルートに適用する
+// (ログインしていない/農家アカウントでは注文操作に進めない)。
+Route::middleware('buyer')->get('/orders/confirm', [OrderConfirmController::class, 'show'])->name('orders.confirm');
+Route::middleware('buyer')->get('/orders/{order}/complete', [OrderCompleteController::class, 'show'])->name('orders.complete');
 
 // 設定画面(B9・F1「設定」に対応)。購入者・農家共通で、表示中の登録情報は
 // 画面側のJavaScriptがGET/PUT /api/v1/users/meを呼んで取得・更新する。

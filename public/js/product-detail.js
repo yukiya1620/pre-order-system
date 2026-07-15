@@ -5,10 +5,12 @@
     }
 
     var productUrl = container.dataset.productUrl;
+    var orderConfirmBaseUrl = container.dataset.orderConfirmBaseUrl;
     var loadingEl = document.getElementById('product-detail-loading');
     var messageEl = document.getElementById('product-detail-message');
     var contentEl = document.getElementById('product-detail-content');
     var quantityInput = document.getElementById('product-detail-quantity');
+    var timeSlotSelect = document.getElementById('product-detail-time-slot');
 
     function showMessage(text) {
         messageEl.textContent = text;
@@ -97,8 +99,27 @@
         quantityInput.max = String(Math.max(sale.stock_quantity, 1));
 
         var orderButton = document.getElementById('product-detail-order-button');
-        if (orderButton && !status.orderable) {
-            orderButton.disabled = true;
+        if (orderButton) {
+            if (!status.orderable) {
+                orderButton.disabled = true;
+            } else {
+                orderButton.addEventListener('click', function () {
+                    if (orderButton.disabled) {
+                        return;
+                    }
+
+                    // 価格・合計金額・商品名・delivery_dateはURLに含めない。
+                    // B5側でPOST /orders/previewを呼び、そのレスポンスを正として表示する。
+                    var params = new URLSearchParams();
+                    params.set('product_sale_id', sale.id);
+                    params.set('quantity', quantityInput.value || '1');
+                    if (timeSlotSelect.value) {
+                        params.set('delivery_time_slot', timeSlotSelect.value);
+                    }
+
+                    window.location.href = orderConfirmBaseUrl + '?' + params.toString();
+                });
+            }
         }
     }
 

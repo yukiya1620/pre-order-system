@@ -177,12 +177,9 @@ class FarmerProxyOrderApiTest extends TestCase
         $response = $this->actingAs($farmer)->postJson('/api/v1/farmer/orders', $this->baseProxyOrderPayload($sale));
 
         $response->assertStatus(201);
-        // delivery_dateはJST(日本時間)の日付として保存されるが、JSONレスポンスでは
-        // Laravelの仕様によりUTC表記に変換される(バグではない)ため、期待値もJST→UTC変換して比較する
-        $response->assertJsonPath(
-            'order.delivery_date',
-            Carbon::parse($deliveryDate.' 00:00:00', 'Asia/Tokyo')->toJSON()
-        );
+        // Order.delivery_dateは'date:Y-m-d'キャストにより、JSONでも"YYYY-MM-DD"のまま返る
+        // (B5/B6実装時にGET /productsのdelivery_dateと表記を揃えるため変更した)
+        $response->assertJsonPath('order.delivery_date', $deliveryDate);
     }
 
     public function test_auto_type_delivery_date_is_pushed_back_one_day_after_deadline(): void
@@ -200,10 +197,7 @@ class FarmerProxyOrderApiTest extends TestCase
 
         $response->assertStatus(201);
         // 締切(18:00)を過ぎているため、本来の翌日配達(7/16)がさらに1日後ろ倒しになり7/17になる
-        $response->assertJsonPath(
-            'order.delivery_date',
-            Carbon::parse('2026-07-17 00:00:00', 'Asia/Tokyo')->toJSON()
-        );
+        $response->assertJsonPath('order.delivery_date', '2026-07-17');
 
         Carbon::setTestNow();
     }

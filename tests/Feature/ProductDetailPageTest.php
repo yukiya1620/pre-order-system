@@ -125,7 +125,7 @@ class ProductDetailPageTest extends TestCase
         $response->assertDontSee('id="product-detail-order-button"', false);
     }
 
-    public function test_buyer_sees_disabled_order_button_with_preparing_note(): void
+    public function test_buyer_sees_enabled_order_button(): void
     {
         $sale = $this->createSale();
         $buyer = User::factory()->create();
@@ -133,7 +133,17 @@ class ProductDetailPageTest extends TestCase
         $response = $this->actingAs($buyer)->get('/products/'.$sale->id);
 
         $response->assertOk();
-        $response->assertSee('id="product-detail-order-button" class="product-detail__order-button" disabled', false);
-        $response->assertSee('注文確認画面は準備中です', false);
+        $response->assertSee('id="product-detail-order-button" class="product-detail__order-button">この内容で注文する', false);
+    }
+
+    public function test_page_embeds_order_confirm_base_url(): void
+    {
+        $sale = $this->createSale();
+        $buyer = User::factory()->create();
+
+        $response = $this->actingAs($buyer)->get('/products/'.$sale->id);
+
+        $response->assertOk();
+        $response->assertSee('data-order-confirm-base-url="'.url('/orders/confirm').'"', false);
     }
 }

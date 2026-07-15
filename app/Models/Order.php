@@ -49,7 +49,11 @@ class Order extends Model
     protected function casts(): array
     {
         return [
-            'delivery_date' => 'date',
+            // 'date:Y-m-d'で明示的にフォーマットを指定すると、内部的には引き続きCarbonインスタンス
+            // として扱えつつ(->format()等はそのまま使える)、JSONシリアライズ時だけ
+            // UTC変換された日時("...T15:00:00.000000Z")ではなく"YYYY-MM-DD"を返すようになる。
+            // ProductSale.delivery_date(GET /products)と表記を揃えるための変更。
+            'delivery_date' => 'date:Y-m-d',
             'is_proxy_order' => 'boolean',
             'paid_at' => 'datetime',
         ];

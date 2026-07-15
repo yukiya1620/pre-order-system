@@ -42,14 +42,18 @@ Route::prefix('v1')->group(function () {
         Route::put('users/me', [UserController::class, 'update']);
     });
 
-    // 購入者向け:注文
-    Route::middleware('auth:sanctum')->group(function () {
+    // 購入者向け:注文(B5・B6実装に合わせ、農家アカウントが自分で注文を作れないようbuyerミドルウェアを付ける。
+    // 所有者以外の注文取得を防ぐチェックはController側(ownershipError)に既存)
+    Route::middleware(['auth:sanctum', 'buyer'])->group(function () {
         Route::get('orders', [OrderController::class, 'index']);
         Route::get('orders/{order}', [OrderController::class, 'show']);
         Route::post('orders/preview', [OrderController::class, 'preview']);
         Route::post('orders', [OrderController::class, 'store']);
         Route::post('orders/{order}/reorder-preview', [OrderController::class, 'reorderPreview']);
+    });
 
+    // 共通(購入者・農家どちらも):通知
+    Route::middleware('auth:sanctum')->group(function () {
         Route::get('notifications', [NotificationController::class, 'index']);
         Route::put('notifications/read-all', [NotificationController::class, 'markAllAsRead']);
         Route::put('notifications/{notification}/read', [NotificationController::class, 'markAsRead']);

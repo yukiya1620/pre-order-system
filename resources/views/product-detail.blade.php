@@ -3,7 +3,9 @@
 @section('title', '商品詳細 | 予約注文システム')
 
 @section('content')
-    <div class="page product-detail-page" data-product-url="{{ url('/api/v1/products/'.$productSaleId) }}">
+    <div class="page product-detail-page"
+         data-product-url="{{ url('/api/v1/products/'.$productSaleId) }}"
+         data-order-confirm-base-url="{{ url('/orders/confirm') }}">
         <header class="product-detail-page__header">
             <a href="{{ route('buyer.home') }}" class="product-detail-page__back-link">◀ 商品一覧へ戻る</a>
         </header>
@@ -43,8 +45,7 @@
                     ご注文にはログインが必要です。<a href="{{ route('login') }}">ログインする ▶</a>
                 </p>
             @else
-                <button type="button" id="product-detail-order-button" class="product-detail__order-button" disabled>この内容で注文する</button>
-                <p class="product-detail__preparing-note">※ 注文確認画面は準備中です。もうしばらくお待ちください。</p>
+                <button type="button" id="product-detail-order-button" class="product-detail__order-button">この内容で注文する</button>
             @endguest
         </div>
     </div>

@@ -172,7 +172,7 @@ class OrderController extends Controller
             'subtotal' => $subtotal,
             'total_amount' => $subtotal,
             'delivery_address' => $user->address,
-            'delivery_date' => $productSale->resolveDeliveryDate(),
+            'delivery_date' => $productSale->delivery_date,
             'delivery_time_slot' => $deliveryTimeSlot,
             'delivery_note' => $productSale->delivery_note,
         ];
