@@ -10,7 +10,8 @@ class ProductController extends Controller
 {
     /**
      * 販売中+売り切れの商品一覧(B3のワイヤーフレーム通り、売り切れもグレー表示で一覧に残す)。
-     * 準備中・販売終了は対象外。
+     * 準備中・販売終了は対象外。商品マスタ側が非表示(is_archived)の商品も、
+     * 農家がF5で「一覧から隠す」操作をした以上、購入者側にも出さない。
      * 画面に必要な「価格・残り数・配達予定日」などは商品マスタではなく
      * 販売シーズン(product_sales)側に持つ情報なので、こちらを起点に取得する。
      */
@@ -18,6 +19,9 @@ class ProductController extends Controller
     {
         $productSales = ProductSale::with('product.category')
             ->whereIn('status', [ProductSale::STATUS_ON_SALE, ProductSale::STATUS_SOLD_OUT])
+            ->whereHas('product', function ($query) {
+                $query->where('is_archived', false);
+            })
             ->orderBy('sale_start_date')
             ->get();
 

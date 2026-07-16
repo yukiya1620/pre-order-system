@@ -85,6 +85,16 @@ class ProductApiTest extends TestCase
         $response->assertJsonCount(0, 'products');
     }
 
+    public function test_index_excludes_archived_products(): void
+    {
+        $this->createSale($this->createProduct(['is_archived' => true]));
+
+        $response = $this->getJson('/api/v1/products');
+
+        $response->assertOk();
+        $response->assertJsonCount(0, 'products');
+    }
+
     public function test_index_includes_reservation_open_flag(): void
     {
         $openSale = $this->createSale($this->createProduct(['name' => '受付中']), ['is_reservation_open' => true]);

@@ -88,6 +88,13 @@ class OrderPlacementService
      */
     public function availabilityError(ProductSale $productSale, int $quantity): ?array
     {
+        if ($productSale->product->is_archived) {
+            return [
+                'code' => 'NOT_AVAILABLE',
+                'message' => '現在この商品は注文を受け付けていません。',
+            ];
+        }
+
         if ($productSale->status !== ProductSale::STATUS_ON_SALE || ! $productSale->is_reservation_open) {
             return [
                 'code' => 'NOT_AVAILABLE',

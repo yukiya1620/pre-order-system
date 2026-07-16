@@ -67,6 +67,9 @@
      * status === '販売中' かつ is_reservation_open === true の場合のみ orderable: true にする。
      */
     function statusInfo(sale) {
+        if (sale.product && sale.product.is_archived) {
+            return { icon: '', label: '現在お取り扱いしていません', cls: 'product-status-badge--ended', orderable: false };
+        }
         if (sale.status === '準備中') {
             return { icon: '⏳', label: '準備中', cls: 'product-status-badge--preparing', orderable: false };
         }

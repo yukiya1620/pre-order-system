@@ -105,6 +105,21 @@ class OrderApiTest extends TestCase
         $response->assertJsonPath('error.code', 'NOT_AVAILABLE');
     }
 
+    public function test_preview_not_available_when_product_is_archived(): void
+    {
+        $sale = $this->createSale();
+        $sale->product->update(['is_archived' => true]);
+        $buyer = User::factory()->create();
+
+        $response = $this->actingAs($buyer)->postJson('/api/v1/orders/preview', [
+            'product_sale_id' => $sale->id,
+            'quantity' => 1,
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonPath('error.code', 'NOT_AVAILABLE');
+    }
+
     public function test_preview_out_of_stock(): void
     {
         $sale = $this->createSale(['stock_quantity' => 2]);
