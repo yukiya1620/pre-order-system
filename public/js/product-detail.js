@@ -51,16 +51,27 @@
     }
 
     /**
-     * 売り切れ・予約受付停止・予約受付中の3状態(B3と同じ判定ロジック)。
+     * 商品の状態を「色+アイコン+文字」の3点セットで表す(設計書5.1、B3と同じ判定ロジック)。
+     * 注文可能条件はサーバー側(OrderPlacementService::availabilityError)と同じく、
+     * status === '販売中' かつ is_reservation_open === true の場合のみ orderable: true にする。
      */
     function statusInfo(sale) {
+        if (sale.status === '準備中') {
+            return { icon: '⏳', label: '準備中', cls: 'product-status-badge--preparing', orderable: false };
+        }
+        if (sale.status === '販売中') {
+            if (sale.is_reservation_open) {
+                return { icon: '🟢', label: '予約受付中', cls: 'product-status-badge--open', orderable: true };
+            }
+            return { icon: '', label: '受付停止', cls: 'product-status-badge--closed', orderable: false };
+        }
         if (sale.status === '売り切れ') {
-            return { label: '✕ 売り切れ', cls: 'product-status-badge--sold-out', orderable: false };
+            return { icon: '✕', label: '売り切れ', cls: 'product-status-badge--sold-out', orderable: false };
         }
-        if (!sale.is_reservation_open) {
-            return { label: '⏸ 予約受付停止', cls: 'product-status-badge--closed', orderable: false };
+        if (sale.status === '販売終了') {
+            return { icon: '⏹', label: '販売終了', cls: 'product-status-badge--ended', orderable: false };
         }
-        return { label: '🟢 予約受付中', cls: 'product-status-badge--open', orderable: true };
+        return { icon: '', label: '現在注文できません', cls: 'product-status-badge--ended', orderable: false };
     }
 
     function renderProduct(sale) {
@@ -72,8 +83,16 @@
 
         var status = statusInfo(sale);
         var badge = document.getElementById('product-detail-status-badge');
-        badge.textContent = status.label;
-        badge.classList.add(status.cls);
+        badge.className = 'product-status-badge ' + status.cls;
+        badge.textContent = '';
+        if (status.icon) {
+            var iconEl = document.createElement('span');
+            iconEl.setAttribute('aria-hidden', 'true');
+            iconEl.textContent = status.icon;
+            badge.appendChild(iconEl);
+            badge.appendChild(document.createTextNode(' '));
+        }
+        badge.appendChild(document.createTextNode(status.label));
 
         var stockEl = document.getElementById('product-detail-stock');
         if (status.orderable) {

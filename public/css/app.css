@@ -1341,6 +1341,14 @@ input[type="file"] {
     background: #fdecea;
     color: var(--color-warning);
 }
+.product-status-badge--preparing {
+    background: #e3f2fd;
+    color: #1565c0;
+}
+.product-status-badge--ended {
+    background: #f2f2f2;
+    color: #666666;
+}
 .product-card__stock,
 .product-card__delivery {
     font-size: 15px;
