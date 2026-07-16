@@ -22,6 +22,19 @@ body {
     max-width: 480px;
     margin: 0 auto;
 }
+/* 599px以下(スマートフォン)は上記のまま。600px/1024pxは設計書6章のブレークポイント基準。
+   フォーム・詳細・確認画面など文章主体の画面を対象に、読みやすい幅までゆるやかに広げる
+   (商品一覧など複数列にしたい画面は .products-page / .buyer-home-page 側で別途上書きする)。 */
+@media (min-width: 600px) {
+    .page {
+        max-width: 600px;
+    }
+}
+@media (min-width: 1024px) {
+    .page {
+        max-width: 720px;
+    }
+}
 h1 {
     font-size: 24px;
     margin: 0 0 24px;
@@ -111,6 +124,16 @@ button[type="submit"]:disabled {
 .farmer-home {
     max-width: 480px;
     margin: 0 auto;
+}
+@media (min-width: 600px) {
+    .farmer-home {
+        max-width: 600px;
+    }
+}
+@media (min-width: 1024px) {
+    .farmer-home {
+        max-width: 720px;
+    }
 }
 .farmer-home__header {
     margin-bottom: 20px;
@@ -214,6 +237,11 @@ button[type="submit"]:disabled {
 @media (max-width: 360px) {
     .farmer-home__menu {
         grid-template-columns: 1fr;
+    }
+}
+@media (min-width: 1024px) {
+    .farmer-home__menu {
+        grid-template-columns: repeat(3, 1fr);
     }
 }
 
@@ -748,6 +776,27 @@ button[type="submit"]:disabled {
 @media (max-width: 480px) {
     .product-card {
         flex-direction: column;
+    }
+}
+/* 商品一覧(F5商品管理・B3購入者トップで共用)は600px以上で2列、1024px以上で3列表示にする(設計書6章)。
+   599px以下は既存の縦積み(flex-direction: column)のまま変更しない。 */
+@media (min-width: 600px) {
+    .products-page,
+    .buyer-home-page {
+        max-width: 900px;
+    }
+    .products-list {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+@media (min-width: 1024px) {
+    .products-page,
+    .buyer-home-page {
+        max-width: 1100px;
+    }
+    .products-list {
+        grid-template-columns: repeat(3, 1fr);
     }
 }
 
