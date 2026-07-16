@@ -76,6 +76,7 @@ class DeliveryConfirmationController extends Controller
             '配達可能' => "注文番号 {$order->order_number} は予定通り".$order->delivery_date->format('n月j日').'に配達予定です。',
             '配達日変更' => "注文番号 {$order->order_number} の配達予定日が".$order->delivery_date->format('n月j日').'に変更になりました。',
             '数量変更' => "注文番号 {$order->order_number} について、数量のご相談があります。農家からの連絡をお待ちください。",
+            'キャンセル相談' => "注文番号 {$order->order_number} について、キャンセルのご相談があります。農家からの連絡をお待ちください。",
             default => "注文番号 {$order->order_number} について、ご相談があります。農家からの連絡をお待ちください。",
         };
 

@@ -254,7 +254,7 @@ class FarmerDeliveryConfirmationApiTest extends TestCase
         $this->assertNotNull($notification);
         $this->assertSame($order->user_id, $notification->user_id);
         $this->assertSame('配達予定確認', $notification->type);
-        $this->assertStringContainsString('ご相談があります', $notification->body);
+        $this->assertStringContainsString('キャンセル', $notification->body);
     }
 
     // === respond: 二重回答拒否 ===
