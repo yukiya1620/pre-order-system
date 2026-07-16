@@ -5,9 +5,22 @@
     --color-accent: #2e7d32;
     --color-warning: #c62828;
     --color-border: #cccccc;
+    /* 入力欄・ボタンなど操作部品の輪郭専用。カード枠・区切り線などの装飾目的の境界線には使わない
+       (WCAG 1.4.11 非テキストコントラスト、3:1以上を確保するため --color-border より濃くしている) */
+    --color-control-border: #949494;
 }
 * {
     box-sizing: border-box;
+}
+/* フォーカス表示: Tabキー操作でどの要素を選んでいるか常に分かるよう、全画面共通で太い枠線を表示する。
+   :focus-visible なのでマウスクリック時には出ず、キーボード操作時だけ表示される。 */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+    outline: 3px solid #1565c0;
+    outline-offset: 2px;
 }
 body {
     margin: 0;
@@ -56,7 +69,7 @@ textarea {
     width: 100%;
     font-size: 18px;
     padding: 12px;
-    border: 1px solid var(--color-border);
+    border: 1px solid var(--color-control-border);
     border-radius: 8px;
     font-family: inherit;
 }
@@ -166,7 +179,7 @@ button[type="submit"]:disabled {
     cursor: pointer;
 }
 .farmer-home__settings-link {
-    border: 1px solid var(--color-border);
+    border: 1px solid var(--color-control-border);
     background: #ffffff;
     color: var(--color-text);
 }
@@ -214,7 +227,7 @@ button[type="submit"]:disabled {
     gap: 8px;
     min-height: 100px;
     padding: 16px;
-    border: 1px solid var(--color-border);
+    border: 1px solid var(--color-control-border);
     border-radius: 8px;
     text-decoration: none;
     color: var(--color-text);
@@ -228,7 +241,7 @@ button[type="submit"]:disabled {
 }
 .farmer-home__menu-item--disabled {
     background: #f2f2f2;
-    color: #888888;
+    color: #666666;
 }
 .farmer-home__menu-item-badge {
     font-size: 14px;
@@ -302,7 +315,7 @@ button[type="submit"]:disabled {
     font-size: 18px;
     font-weight: bold;
     border-radius: 8px;
-    border: 1px solid var(--color-border);
+    border: 1px solid var(--color-control-border);
     background: #ffffff;
     color: var(--color-text);
     cursor: pointer;
@@ -326,7 +339,7 @@ button[type="submit"]:disabled {
     min-height: 56px;
     font-size: 18px;
     padding: 12px;
-    border: 1px solid var(--color-border);
+    border: 1px solid var(--color-control-border);
     border-radius: 8px;
 }
 .confirmation-card__date-picker button {
@@ -395,7 +408,7 @@ button[type="submit"]:disabled {
     min-height: 56px;
     font-size: 18px;
     padding: 8px 12px;
-    border: 1px solid var(--color-border);
+    border: 1px solid var(--color-control-border);
     border-radius: 8px;
 }
 .orders-empty {
@@ -443,7 +456,7 @@ button[type="submit"]:disabled {
 }
 .order-status-badge--changed {
     background: #fff3e0;
-    color: #ef6c00;
+    color: #b25400;
 }
 .order-status-badge--delivered {
     background: #e8f5e9;
@@ -482,7 +495,7 @@ button[type="submit"]:disabled {
     min-height: 56px;
     font-size: 18px;
     padding: 8px 12px;
-    border: 1px solid var(--color-border);
+    border: 1px solid var(--color-control-border);
     border-radius: 8px;
 }
 .order-card__complete-form button {
@@ -526,7 +539,7 @@ button[type="submit"]:disabled {
     font-size: 18px;
     font-weight: bold;
     border-radius: 8px;
-    border: 1px solid var(--color-border);
+    border: 1px solid var(--color-control-border);
     background: #ffffff;
     color: var(--color-text);
     cursor: pointer;
@@ -573,7 +586,7 @@ button[type="submit"]:disabled {
     font-size: 14px;
     font-weight: bold;
     background: #fff3e0;
-    color: #ef6c00;
+    color: #b25400;
 }
 .order-detail__section {
     margin-bottom: 24px;
@@ -653,7 +666,7 @@ button[type="submit"]:disabled {
     min-height: 56px;
     font-size: 18px;
     padding: 8px 12px;
-    border: 1px solid var(--color-border);
+    border: 1px solid var(--color-control-border);
     border-radius: 8px;
 }
 .products-empty {
@@ -695,7 +708,7 @@ button[type="submit"]:disabled {
     justify-content: center;
     border-radius: 8px;
     background: #f2f2f2;
-    color: #888888;
+    color: #666666;
     font-size: 13px;
     text-align: center;
 }
@@ -721,7 +734,7 @@ button[type="submit"]:disabled {
     font-size: 14px;
     font-weight: bold;
     background: #f2f2f2;
-    color: #888888;
+    color: #666666;
 }
 .product-card__category {
     font-size: 15px;
@@ -735,7 +748,7 @@ button[type="submit"]:disabled {
     margin: 4px 0;
 }
 .product-card__sale-none {
-    color: #888888;
+    color: #707070;
 }
 .product-sale-status-badge {
     display: inline-block;
@@ -755,11 +768,11 @@ button[type="submit"]:disabled {
 }
 .product-sale-status--sold-out {
     background: #fff3e0;
-    color: #ef6c00;
+    color: #b25400;
 }
 .product-sale-status--ended {
     background: #f2f2f2;
-    color: #888888;
+    color: #666666;
 }
 .product-card__actions {
     display: flex;
@@ -832,7 +845,7 @@ button[type="submit"]:disabled {
     justify-content: center;
     border-radius: 8px;
     background: #f2f2f2;
-    color: #888888;
+    color: #666666;
     font-size: 13px;
 }
 input[type="file"] {
@@ -972,7 +985,7 @@ input[type="file"] {
     font-size: 18px;
     font-weight: bold;
     border-radius: 8px;
-    border: 1px solid var(--color-border);
+    border: 1px solid var(--color-control-border);
     background: #ffffff;
     color: var(--color-text);
     cursor: pointer;
@@ -1035,7 +1048,7 @@ input[type="file"] {
     min-height: 56px;
     font-size: 18px;
     border-radius: 8px;
-    border: 1px solid var(--color-border);
+    border: 1px solid var(--color-control-border);
     background: #ffffff;
     color: var(--color-text);
     cursor: pointer;
@@ -1100,7 +1113,7 @@ input[type="file"] {
     padding: 0 14px;
     font-size: 15px;
     border-radius: 8px;
-    border: 1px solid var(--color-border);
+    border: 1px solid var(--color-control-border);
     background: #ffffff;
     color: var(--color-text);
     cursor: pointer;
@@ -1129,7 +1142,7 @@ input[type="file"] {
     font-size: 18px;
     font-weight: bold;
     border-radius: 8px;
-    border: 1px solid var(--color-border);
+    border: 1px solid var(--color-control-border);
     background: #ffffff;
     color: var(--color-text);
     cursor: pointer;
@@ -1162,7 +1175,7 @@ input[type="file"] {
     padding: 12px 16px;
     border-radius: 8px;
     background: #fff3e0;
-    color: #ef6c00;
+    color: #b25400;
     font-size: 15px;
     margin-bottom: 16px;
 }
@@ -1197,7 +1210,7 @@ input[type="file"] {
     min-height: 56px;
     font-size: 18px;
     border-radius: 8px;
-    border: 1px solid var(--color-border);
+    border: 1px solid var(--color-control-border);
     background: #ffffff;
     color: var(--color-text);
     cursor: pointer;
@@ -1234,7 +1247,7 @@ input[type="file"] {
     padding: 0 16px;
     font-size: 15px;
     border-radius: 8px;
-    border: 1px solid var(--color-border);
+    border: 1px solid var(--color-control-border);
     background: #ffffff;
     color: var(--color-text);
     cursor: pointer;
@@ -1282,7 +1295,7 @@ input[type="file"] {
     font-size: 15px;
     font-weight: bold;
     border-radius: 999px;
-    border: 1px solid var(--color-border);
+    border: 1px solid var(--color-control-border);
     background: #ffffff;
     color: var(--color-text);
     cursor: pointer;
@@ -1361,7 +1374,7 @@ input[type="file"] {
     justify-content: center;
     border-radius: 8px;
     background: #f2f2f2;
-    color: #888888;
+    color: #666666;
     font-size: 15px;
 }
 .product-detail__category {
@@ -1476,7 +1489,7 @@ input[type="file"] {
     min-height: 48px;
     font-size: 16px;
     border-radius: 8px;
-    border: 1px solid var(--color-border);
+    border: 1px solid var(--color-control-border);
     background: #ffffff;
     color: var(--color-text);
     cursor: pointer;
@@ -1617,7 +1630,7 @@ input[type="file"] {
     line-height: 56px;
     font-size: 16px;
     border-radius: 8px;
-    border: 1px solid var(--color-border);
+    border: 1px solid var(--color-control-border);
     color: var(--color-text);
     text-decoration: none;
 }
@@ -1798,7 +1811,7 @@ input[type="file"] {
     font-size: 16px;
     font-weight: bold;
     border-radius: 8px;
-    border: 1px solid var(--color-border);
+    border: 1px solid var(--color-control-border);
     background: #ffffff;
     color: var(--color-text);
     cursor: pointer;
@@ -1878,7 +1891,7 @@ input[type="file"] {
     font-weight: bold;
 }
 .notification-card__read-button {
-    border: 1px solid var(--color-border);
+    border: 1px solid var(--color-control-border);
     background: #ffffff;
     color: var(--color-text);
 }
