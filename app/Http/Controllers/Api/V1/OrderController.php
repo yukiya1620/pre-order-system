@@ -66,6 +66,16 @@ class OrderController extends Controller
         }
 
         $orderItem = $order->orderItems->first();
+
+        if (! $orderItem) {
+            return response()->json([
+                'error' => [
+                    'code' => 'ORDER_ITEM_NOT_FOUND',
+                    'message' => 'この注文には商品明細が存在しないため、再注文できません。',
+                ],
+            ], 422);
+        }
+
         $productSale = ProductSale::with('product')->find($orderItem->product_sale_id);
 
         if (! $productSale) {

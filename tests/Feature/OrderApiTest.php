@@ -440,4 +440,22 @@ class OrderApiTest extends TestCase
         $response->assertStatus(422);
         $response->assertJsonPath('error.code', 'OUT_OF_STOCK');
     }
+
+    public function test_reorder_preview_when_order_has_no_items(): void
+    {
+        $buyer = User::factory()->create();
+        $order = Order::create([
+            'order_number' => 'TEST-NOITEM',
+            'user_id' => $buyer->id,
+            'status' => Order::STATUS_RECEIVED,
+            'total_amount' => 0,
+            'delivery_address' => $buyer->address,
+            'delivery_date' => now()->addDays(3)->toDateString(),
+        ]);
+
+        $response = $this->actingAs($buyer)->postJson('/api/v1/orders/'.$order->id.'/reorder-preview');
+
+        $response->assertStatus(422);
+        $response->assertJsonPath('error.code', 'ORDER_ITEM_NOT_FOUND');
+    }
 }
