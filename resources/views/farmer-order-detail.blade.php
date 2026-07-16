@@ -70,6 +70,33 @@
                     <p>回答日時: <span id="detail-confirmation-responded-at"></span></p>
                 </div>
             </section>
+
+            <section id="detail-actions-section" class="order-detail__section" hidden>
+                <h2>注文の変更</h2>
+                <p class="field-hint">購入者へ電話等で確認したうえで、変更を確定してください。</p>
+
+                <p id="detail-action-message" class="message message-error" hidden></p>
+
+                <div class="field" id="detail-reduce-quantity-field" hidden>
+                    <label for="detail-new-quantity">新しい数量</label>
+                    <input type="number" id="detail-new-quantity" min="1">
+                </div>
+
+                <div class="field">
+                    <label for="detail-adjustment-note">メモ(任意)</label>
+                    <textarea id="detail-adjustment-note" maxlength="255"></textarea>
+                </div>
+
+                <div class="field">
+                    <label class="order-detail__checkbox-label">
+                        <input type="checkbox" id="detail-confirmed-with-buyer">
+                        購入者へ電話等で確認済みです
+                    </label>
+                </div>
+
+                <button type="button" id="detail-reduce-quantity-button" hidden>この数量に変更する</button>
+                <button type="button" id="detail-cancel-order-button" class="order-detail__cancel-button">注文をキャンセルする</button>
+            </section>
         </div>
     </div>
 @endsection

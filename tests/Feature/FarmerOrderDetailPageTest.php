@@ -153,6 +153,22 @@ class FarmerOrderDetailPageTest extends TestCase
         $response->assertSee('商品明細');
         $response->assertSee('支払い情報');
         $response->assertSee('配達確認');
+        $response->assertSee('注文の変更');
+    }
+
+    public function test_page_has_order_action_controls(): void
+    {
+        $order = $this->createOrder();
+        $farmer = User::factory()->farmer()->create();
+
+        $response = $this->actingAs($farmer)->get('/farmer/orders/'.$order->id);
+
+        $response->assertOk();
+        $response->assertSee('購入者へ電話等で確認済みです');
+        $response->assertSee('この数量に変更する');
+        $response->assertSee('注文をキャンセルする');
+        $response->assertSee('id="detail-new-quantity"', false);
+        $response->assertSee('id="detail-confirmed-with-buyer"', false);
     }
 
     public function test_orders_list_links_to_detail_page(): void

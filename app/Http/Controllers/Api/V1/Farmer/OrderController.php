@@ -4,19 +4,25 @@ namespace App\Http\Controllers\Api\V1\Farmer;
 
 use App\Exceptions\OrderPlacementException;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Farmer\CancelOrderRequest;
 use App\Http\Requests\Farmer\CompleteOrderRequest;
 use App\Http\Requests\Farmer\PlaceProxyOrderRequest;
+use App\Http\Requests\Farmer\ReduceOrderQuantityRequest;
 use App\Models\Notification;
 use App\Models\Order;
 use App\Models\User;
+use App\Services\OrderAdjustmentService;
 use App\Services\OrderPlacementService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class OrderController extends Controller
 {
-    public function __construct(private readonly OrderPlacementService $orderPlacementService)
-    {
+    public function __construct(
+        private readonly OrderPlacementService $orderPlacementService,
+        private readonly OrderAdjustmentService $orderAdjustmentService,
+    ) {
     }
 
     /**
@@ -108,6 +114,57 @@ class OrderController extends Controller
 
         return response()->json([
             'order' => $order->fresh(['user', 'orderItems.productSale.product', 'deliveryConfirmation']),
+        ]);
+    }
+
+    /**
+     * 数量を減らす(3.4.1節)。購入者へ電話等で確認が取れたことが前提(FormRequestで必須化)。
+     */
+    public function reduceQuantity(ReduceOrderQuantityRequest $request, Order $order): JsonResponse
+    {
+        try {
+            $order = $this->orderAdjustmentService->reduceQuantity(
+                $order,
+                (int) $request->input('quantity'),
+                $request->input('note'),
+                Auth::user(),
+            );
+        } catch (OrderPlacementException $exception) {
+            return response()->json([
+                'error' => [
+                    'code' => $exception->errorCode(),
+                    'message' => $exception->getMessage(),
+                ],
+            ], 422);
+        }
+
+        return response()->json([
+            'order' => $order->load(['user', 'orderItems.productSale.product', 'deliveryConfirmation']),
+        ]);
+    }
+
+    /**
+     * 注文全体をキャンセルする(3.4.1節)。購入者へ電話等で確認が取れたことが前提。
+     */
+    public function cancel(CancelOrderRequest $request, Order $order): JsonResponse
+    {
+        try {
+            $order = $this->orderAdjustmentService->cancel(
+                $order,
+                $request->input('note'),
+                Auth::user(),
+            );
+        } catch (OrderPlacementException $exception) {
+            return response()->json([
+                'error' => [
+                    'code' => $exception->errorCode(),
+                    'message' => $exception->getMessage(),
+                ],
+            ], 422);
+        }
+
+        return response()->json([
+            'order' => $order->load(['user', 'orderItems.productSale.product', 'deliveryConfirmation']),
         ]);
     }
 

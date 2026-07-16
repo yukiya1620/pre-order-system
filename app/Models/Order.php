@@ -82,4 +82,12 @@ class Order extends Model
     {
         return $this->hasOne(DeliveryConfirmation::class);
     }
+
+    /**
+     * この注文に対する数量減少・キャンセルの変更履歴
+     */
+    public function orderAdjustments(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(OrderAdjustment::class);
+    }
 }

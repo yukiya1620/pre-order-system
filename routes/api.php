@@ -82,6 +82,8 @@ Route::prefix('v1')->group(function () {
         Route::get('orders/{order}', [FarmerOrderController::class, 'show']);
         Route::post('orders', [FarmerOrderController::class, 'store']);
         Route::put('orders/{order}/complete', [FarmerOrderController::class, 'complete']);
+        Route::put('orders/{order}/reduce-quantity', [FarmerOrderController::class, 'reduceQuantity']);
+        Route::put('orders/{order}/cancel', [FarmerOrderController::class, 'cancel']);
 
         // 4.8 売上
         Route::get('sales-summary', [SalesController::class, 'summary']);

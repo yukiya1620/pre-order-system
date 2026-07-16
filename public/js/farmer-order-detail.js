@@ -5,9 +5,21 @@
     }
 
     var orderUrl = container.dataset.orderUrl;
+    var csrfToken = document.querySelector('meta[name="csrf-token"]').content;
     var loadingEl = document.getElementById('order-detail-loading');
     var generalMessageEl = document.getElementById('order-detail-message');
     var contentEl = document.getElementById('order-detail-content');
+
+    var actionsSectionEl = document.getElementById('detail-actions-section');
+    var actionMessageEl = document.getElementById('detail-action-message');
+    var reduceQuantityFieldEl = document.getElementById('detail-reduce-quantity-field');
+    var newQuantityInput = document.getElementById('detail-new-quantity');
+    var adjustmentNoteInput = document.getElementById('detail-adjustment-note');
+    var confirmedWithBuyerCheckbox = document.getElementById('detail-confirmed-with-buyer');
+    var reduceQuantityButton = document.getElementById('detail-reduce-quantity-button');
+    var cancelOrderButton = document.getElementById('detail-cancel-order-button');
+
+    var NOT_ADJUSTABLE_STATUSES = ['配達完了', 'キャンセル'];
 
     var statusBadgeClasses = {
         '受付済': 'order-status-badge--received',
@@ -150,7 +162,131 @@
         document.getElementById('detail-confirmation-responded-at').textContent = formatDateTime(confirmation.responded_at);
     }
 
+    var currentOrder = null;
+
+    /**
+     * 数量が2以上なら「数量を減らす」「注文をキャンセルする」の両方、
+     * 1なら全キャンセルのみを選べる。配達完了・キャンセル済みは操作欄自体を隠す。
+     */
+    function renderActions(order) {
+        var item = (order.order_items || [])[0];
+
+        if (!item || NOT_ADJUSTABLE_STATUSES.indexOf(order.status) !== -1) {
+            actionsSectionEl.hidden = true;
+            return;
+        }
+
+        actionsSectionEl.hidden = false;
+        actionMessageEl.hidden = true;
+        confirmedWithBuyerCheckbox.checked = false;
+        adjustmentNoteInput.value = '';
+
+        if (item.quantity >= 2) {
+            reduceQuantityFieldEl.hidden = false;
+            reduceQuantityButton.hidden = false;
+            newQuantityInput.min = 1;
+            newQuantityInput.max = item.quantity - 1;
+            newQuantityInput.value = item.quantity - 1;
+        } else {
+            reduceQuantityFieldEl.hidden = true;
+            reduceQuantityButton.hidden = true;
+        }
+    }
+
+    function showActionError(text) {
+        actionMessageEl.textContent = text;
+        actionMessageEl.hidden = false;
+    }
+
+    function setActionsBusy(busy) {
+        reduceQuantityButton.disabled = busy;
+        cancelOrderButton.disabled = busy;
+    }
+
+    /**
+     * 数量減少・キャンセル共通の送信処理。二重クリック自体はボタンのdisabledで防ぐが、
+     * サーバー側もロック後の再検証で二重実行を防いでいるため、通信の再送があっても安全。
+     */
+    function submitAdjustment(path, payload) {
+        if (!confirmedWithBuyerCheckbox.checked) {
+            showActionError('購入者へ電話等で確認済みであることをチェックしてください。');
+            return;
+        }
+
+        setActionsBusy(true);
+        actionMessageEl.hidden = true;
+
+        fetch(orderUrl + path, {
+            method: 'PUT',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrfToken
+            },
+            body: JSON.stringify(payload)
+        }).then(function (response) {
+            if (response.status === 401) {
+                setActionsBusy(false);
+                showActionError('ログインの有効期限が切れています。もう一度ログインしてください。');
+                return null;
+            }
+            if (response.status === 422) {
+                return response.json().then(function (data) {
+                    setActionsBusy(false);
+                    showActionError((data.error && data.error.message) || 'この操作は行えませんでした。画面を確認してください。');
+                    return null;
+                });
+            }
+            if (!response.ok) {
+                throw new Error('unexpected status ' + response.status);
+            }
+            return response.json();
+        }).then(function (data) {
+            if (!data) {
+                return;
+            }
+            setActionsBusy(false);
+            renderOrder(data.order);
+        }).catch(function () {
+            setActionsBusy(false);
+            showActionError('通信に失敗しました。時間をおいてもう一度お試しください。');
+        });
+    }
+
+    reduceQuantityButton.addEventListener('click', function () {
+        var item = (currentOrder.order_items || [])[0];
+        var newQuantity = parseInt(newQuantityInput.value, 10);
+
+        if (!newQuantity || newQuantity < 1 || newQuantity >= item.quantity) {
+            showActionError('新しい数量は、現在の数量(' + item.quantity + ')より少ない1以上の値にしてください。');
+            return;
+        }
+
+        if (!window.confirm('数量を' + item.quantity + 'から' + newQuantity + 'に変更します。よろしいですか?')) {
+            return;
+        }
+
+        submitAdjustment('/reduce-quantity', {
+            quantity: newQuantity,
+            confirmed_with_buyer_at: true,
+            note: adjustmentNoteInput.value || null
+        });
+    });
+
+    cancelOrderButton.addEventListener('click', function () {
+        if (!window.confirm('注文番号 ' + currentOrder.order_number + ' をキャンセルします。よろしいですか?')) {
+            return;
+        }
+
+        submitAdjustment('/cancel', {
+            confirmed_with_buyer_at: true,
+            note: adjustmentNoteInput.value || null
+        });
+    });
+
     function renderOrder(order) {
+        currentOrder = order;
         document.getElementById('detail-order-number').textContent = '注文番号: ' + order.order_number;
         renderStatusBadge(order.status);
         document.getElementById('detail-proxy-badge').hidden = !order.is_proxy_order;
@@ -177,6 +313,7 @@
         }
 
         renderDeliveryConfirmation(order.delivery_confirmation);
+        renderActions(order);
     }
 
     function loadOrder() {
