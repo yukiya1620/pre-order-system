@@ -14,7 +14,7 @@ class FarmerHomePageTest extends TestCase
     {
         $response = $this->get('/farmer');
 
-        $response->assertStatus(403);
+        $response->assertRedirect(route('login'));
     }
 
     public function test_buyer_cannot_access_farmer_home(): void
@@ -23,7 +23,7 @@ class FarmerHomePageTest extends TestCase
 
         $response = $this->actingAs($buyer)->get('/farmer');
 
-        $response->assertStatus(403);
+        $response->assertRedirect(route('buyer.home'));
     }
 
     public function test_farmer_can_access_farmer_home(): void

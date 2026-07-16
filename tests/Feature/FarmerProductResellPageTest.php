@@ -30,7 +30,7 @@ class FarmerProductResellPageTest extends TestCase
 
         $response = $this->get('/farmer/products/'.$product->id.'/resell');
 
-        $response->assertStatus(403);
+        $response->assertRedirect(route('login'));
     }
 
     public function test_buyer_cannot_access_page(): void
@@ -40,7 +40,7 @@ class FarmerProductResellPageTest extends TestCase
 
         $response = $this->actingAs($buyer)->get('/farmer/products/'.$product->id.'/resell');
 
-        $response->assertStatus(403);
+        $response->assertRedirect(route('buyer.home'));
     }
 
     public function test_farmer_can_access_page(): void
