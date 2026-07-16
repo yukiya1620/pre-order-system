@@ -23,6 +23,15 @@
         'キャンセル': 'order-status-badge--cancelled'
     };
 
+    // 設計書5.1の「色+アイコン+文字」の3点セットに合わせ、状態バッジに絵文字を添える
+    var statusIcons = {
+        '受付済': '📝',
+        '配達確認済': '✅',
+        '配達日変更': '📅',
+        '配達完了': '📦',
+        'キャンセル': '✕'
+    };
+
     function showGeneralMessage(text) {
         generalMessageEl.textContent = text;
         generalMessageEl.hidden = false;
@@ -39,7 +48,15 @@
             badge.classList.remove(statusBadgeClasses[key]);
         });
         badge.classList.add(statusBadgeClasses[status] || '');
-        badge.textContent = status;
+        badge.textContent = '';
+        if (statusIcons[status]) {
+            var iconEl = document.createElement('span');
+            iconEl.setAttribute('aria-hidden', 'true');
+            iconEl.textContent = statusIcons[status];
+            badge.appendChild(iconEl);
+            badge.appendChild(document.createTextNode(' '));
+        }
+        badge.appendChild(document.createTextNode(status));
     }
 
     function renderItems(items) {

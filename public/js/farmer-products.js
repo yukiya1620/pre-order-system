@@ -19,6 +19,14 @@
         '販売終了': 'product-sale-status--ended'
     };
 
+    // 設計書5.1の「色+アイコン+文字」の3点セットに合わせ、状態バッジに絵文字を添える
+    var saleStatusIcons = {
+        '準備中': '⏳',
+        '販売中': '🟢',
+        '売り切れ': '✕',
+        '販売終了': '⏹'
+    };
+
     var allProducts = [];
 
     function showGeneralMessage(text) {
@@ -76,7 +84,15 @@
 
         var badge = document.createElement('span');
         badge.className = 'product-sale-status-badge ' + (saleStatusClasses[sale.status] || '');
-        badge.textContent = sale.status;
+        badge.textContent = '';
+        if (saleStatusIcons[sale.status]) {
+            var iconEl = document.createElement('span');
+            iconEl.setAttribute('aria-hidden', 'true');
+            iconEl.textContent = saleStatusIcons[sale.status];
+            badge.appendChild(iconEl);
+            badge.appendChild(document.createTextNode(' '));
+        }
+        badge.appendChild(document.createTextNode(sale.status));
         wrap.appendChild(badge);
 
         var priceEl = document.createElement('p');
