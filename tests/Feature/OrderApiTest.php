@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Category;
+use App\Models\Notification;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
@@ -235,6 +236,49 @@ class OrderApiTest extends TestCase
         $response->assertJsonPath('error.code', 'OUT_OF_STOCK');
         $this->assertSame(0, Order::count());
         $this->assertSame(1, $sale->fresh()->stock_quantity);
+    }
+
+    public function test_order_exactly_depleting_stock_marks_sale_as_sold_out(): void
+    {
+        $sale = $this->createSale(['stock_quantity' => 1, 'price' => 500]);
+        $buyer = User::factory()->create();
+
+        $response = $this->actingAs($buyer)->postJson('/api/v1/orders', [
+            'product_sale_id' => $sale->id,
+            'quantity' => 1,
+        ]);
+
+        $response->assertStatus(201);
+        $response->assertJsonPath('order.total_amount', 500);
+        $response->assertJsonPath('order.order_items.0.quantity', 1);
+        $response->assertJsonPath('order.order_items.0.subtotal', 500);
+
+        $sale->refresh();
+        $this->assertSame(0, $sale->stock_quantity);
+        $this->assertSame(ProductSale::STATUS_SOLD_OUT, $sale->status);
+    }
+
+    public function test_placing_order_notifies_buyer_and_all_farmers(): void
+    {
+        $sale = $this->createSale();
+        $buyer = User::factory()->create();
+        $farmerA = User::factory()->farmer()->create();
+        $farmerB = User::factory()->farmer()->create();
+
+        $response = $this->actingAs($buyer)->postJson('/api/v1/orders', [
+            'product_sale_id' => $sale->id,
+            'quantity' => 1,
+        ]);
+
+        $response->assertStatus(201);
+        $orderId = $response->json('order.id');
+
+        $notifications = Notification::where('related_order_id', $orderId)->get();
+
+        $this->assertSame(3, $notifications->count());
+        $this->assertSame(1, $notifications->where('user_id', $buyer->id)->where('type', '注文受付')->count());
+        $this->assertSame(1, $notifications->where('user_id', $farmerA->id)->where('type', '新規注文')->count());
+        $this->assertSame(1, $notifications->where('user_id', $farmerB->id)->where('type', '新規注文')->count());
     }
 
     public function test_validation_error_leaves_no_order_behind(): void
