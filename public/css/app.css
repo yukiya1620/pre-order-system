@@ -60,6 +60,13 @@ label {
     font-weight: bold;
     margin-bottom: 8px;
 }
+/* label要素は入力欄と組み合わせて使うためのもの。読み取り専用の値の見出しなど、
+   対応する入力欄が無い箇所では見た目だけこのクラスで揃える(label要素は使わない)。 */
+.field-label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 8px;
+}
 input[type="text"],
 input[type="email"],
 input[type="number"],
@@ -973,6 +980,10 @@ input[type="file"] {
     text-align: left;
     padding: 8px;
     border-bottom: 1px solid var(--color-border);
+}
+.sales-breakdown-table th[scope="row"],
+.sales-by-product-table th[scope="row"] {
+    font-weight: normal;
 }
 .sales-page__period-buttons {
     display: flex;

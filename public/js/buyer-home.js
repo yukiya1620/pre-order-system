@@ -178,6 +178,7 @@
         var allTab = document.createElement('button');
         allTab.type = 'button';
         allTab.className = 'buyer-home-page__category-tab buyer-home-page__category-tab--active';
+        allTab.setAttribute('aria-pressed', 'true');
         allTab.textContent = 'すべて';
         allTab.dataset.categoryId = '';
         categoryTabsEl.appendChild(allTab);
@@ -186,6 +187,7 @@
             var tab = document.createElement('button');
             tab.type = 'button';
             tab.className = 'buyer-home-page__category-tab';
+            tab.setAttribute('aria-pressed', 'false');
             tab.textContent = category.name;
             tab.dataset.categoryId = category.id;
             categoryTabsEl.appendChild(tab);
@@ -202,6 +204,7 @@
 
         categoryTabsEl.querySelectorAll('.buyer-home-page__category-tab').forEach(function (el) {
             el.classList.toggle('buyer-home-page__category-tab--active', el === tab);
+            el.setAttribute('aria-pressed', el === tab ? 'true' : 'false');
         });
 
         renderProducts();

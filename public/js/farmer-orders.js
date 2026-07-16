@@ -163,9 +163,11 @@
 
         var statusLabel = document.createElement('label');
         statusLabel.textContent = '支払い状況';
+        statusLabel.htmlFor = 'payment-status-' + order.id;
         wrapper.appendChild(statusLabel);
 
         var statusSelect = document.createElement('select');
+        statusSelect.id = 'payment-status-' + order.id;
         [['', '選択してください'], ['paid', '支払い済み'], ['unpaid', '未払い']].forEach(function (pair) {
             var option = document.createElement('option');
             option.value = pair[0];
@@ -176,9 +178,11 @@
 
         var methodLabel = document.createElement('label');
         methodLabel.textContent = '支払い方法(任意)';
+        methodLabel.htmlFor = 'payment-method-' + order.id;
         wrapper.appendChild(methodLabel);
 
         var methodSelect = document.createElement('select');
+        methodSelect.id = 'payment-method-' + order.id;
         [['', '未選択'], ['cash', '現金'], ['card', 'カード'], ['paypay', 'PayPay']].forEach(function (pair) {
             var option = document.createElement('option');
             option.value = pair[0];

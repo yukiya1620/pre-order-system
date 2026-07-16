@@ -34,10 +34,10 @@
                 <table class="order-detail__items-table">
                     <thead>
                         <tr>
-                            <th>商品名</th>
-                            <th>数量</th>
-                            <th>単価</th>
-                            <th>小計</th>
+                            <th scope="col">商品名</th>
+                            <th scope="col">数量</th>
+                            <th scope="col">単価</th>
+                            <th scope="col">小計</th>
                         </tr>
                     </thead>
                     <tbody id="detail-items-body"></tbody>

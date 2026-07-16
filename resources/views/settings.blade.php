@@ -34,13 +34,13 @@
             </div>
 
             <div class="field">
-                <label>電話番号</label>
+                <p class="field-label">電話番号</p>
                 <span id="phone_number" class="readonly-value"></span>
                 <p class="field-hint">電話番号はここでは変更できません。</p>
             </div>
 
             <div class="field">
-                <label>ご利用区分</label>
+                <p class="field-label">ご利用区分</p>
                 <span id="role" class="readonly-value"></span>
             </div>
 

@@ -18,7 +18,7 @@
 
         <form id="product-resell-form" hidden>
             <div class="field">
-                <label>商品</label>
+                <p class="field-label">商品</p>
                 <p id="product-resell-name" class="product-resell__product-name"></p>
             </div>
 

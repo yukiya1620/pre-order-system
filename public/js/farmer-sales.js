@@ -119,7 +119,8 @@
             products.forEach(function (product) {
                 var row = document.createElement('tr');
 
-                var nameCell = document.createElement('td');
+                var nameCell = document.createElement('th');
+                nameCell.scope = 'row';
                 nameCell.textContent = product.product_name;
                 row.appendChild(nameCell);
 
@@ -145,8 +146,10 @@
         button.addEventListener('click', function () {
             periodButtons.forEach(function (b) {
                 b.classList.remove('sales-period-button--active');
+                b.setAttribute('aria-pressed', 'false');
             });
             button.classList.add('sales-period-button--active');
+            button.setAttribute('aria-pressed', 'true');
             loadByProduct(button.dataset.period);
         });
     });

@@ -47,21 +47,21 @@
                 <h2>支払い状況の内訳(確定売上)</h2>
                 <table class="sales-breakdown-table">
                     <thead>
-                        <tr><th></th><th>金額</th><th>件数</th></tr>
+                        <tr><th scope="col"></th><th scope="col">金額</th><th scope="col">件数</th></tr>
                     </thead>
                     <tbody>
                         <tr>
-                            <td>支払い済み</td>
+                            <th scope="row">支払い済み</th>
                             <td id="payment-status-paid-amount"></td>
                             <td id="payment-status-paid-count"></td>
                         </tr>
                         <tr>
-                            <td>未払い</td>
+                            <th scope="row">未払い</th>
                             <td id="payment-status-unpaid-amount"></td>
                             <td id="payment-status-unpaid-count"></td>
                         </tr>
                         <tr>
-                            <td>返金済み</td>
+                            <th scope="row">返金済み</th>
                             <td id="payment-status-refunded-amount"></td>
                             <td id="payment-status-refunded-count"></td>
                         </tr>
@@ -71,21 +71,21 @@
                 <h2>支払い方法の内訳(確定売上)</h2>
                 <table class="sales-breakdown-table">
                     <thead>
-                        <tr><th></th><th>金額</th><th>件数</th></tr>
+                        <tr><th scope="col"></th><th scope="col">金額</th><th scope="col">件数</th></tr>
                     </thead>
                     <tbody>
                         <tr>
-                            <td>現金</td>
+                            <th scope="row">現金</th>
                             <td id="payment-method-cash-amount"></td>
                             <td id="payment-method-cash-count"></td>
                         </tr>
                         <tr>
-                            <td>カード</td>
+                            <th scope="row">カード</th>
                             <td id="payment-method-card-amount"></td>
                             <td id="payment-method-card-count"></td>
                         </tr>
                         <tr>
-                            <td>PayPay</td>
+                            <th scope="row">PayPay</th>
                             <td id="payment-method-paypay-amount"></td>
                             <td id="payment-method-paypay-count"></td>
                         </tr>
@@ -98,9 +98,9 @@
             <h2>商品別売上</h2>
 
             <div class="sales-page__period-buttons">
-                <button type="button" class="sales-period-button" data-period="today">今日</button>
-                <button type="button" class="sales-period-button sales-period-button--active" data-period="month">今月</button>
-                <button type="button" class="sales-period-button" data-period="year">今年</button>
+                <button type="button" class="sales-period-button" data-period="today" aria-pressed="false">今日</button>
+                <button type="button" class="sales-period-button sales-period-button--active" data-period="month" aria-pressed="true">今月</button>
+                <button type="button" class="sales-period-button" data-period="year" aria-pressed="false">今年</button>
             </div>
 
             <p id="sales-by-product-loading">読み込み中です…</p>
@@ -109,7 +109,7 @@
 
             <table class="sales-by-product-table" id="sales-by-product-table" hidden>
                 <thead>
-                    <tr><th>商品名</th><th>販売数量</th><th>確定売上金額</th></tr>
+                    <tr><th scope="col">商品名</th><th scope="col">販売数量</th><th scope="col">確定売上金額</th></tr>
                 </thead>
                 <tbody id="sales-by-product-body"></tbody>
             </table>
