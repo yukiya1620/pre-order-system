@@ -166,6 +166,17 @@ class GenerateDeliveryConfirmationsTest extends TestCase
         $this->assertDatabaseCount('delivery_confirmations', 0);
     }
 
+    public function test_delivered_order_is_not_targeted(): void
+    {
+        $sale = $this->createSale($this->createProduct());
+        $this->createOrder($sale, ['status' => Order::STATUS_DELIVERED]);
+
+        $this->artisan('orders:generate-delivery-confirmations')
+            ->expectsOutputToContain('0件の配達確認を作成しました。');
+
+        $this->assertDatabaseCount('delivery_confirmations', 0);
+    }
+
     public function test_order_with_existing_confirmation_is_not_targeted_again(): void
     {
         $sale = $this->createSale($this->createProduct());

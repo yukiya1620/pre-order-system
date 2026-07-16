@@ -30,7 +30,7 @@ class GenerateDeliveryConfirmations extends Command
         $targetDate = today()->addDays(3);
 
         $orders = Order::whereDate('delivery_date', $targetDate)
-            ->where('status', '!=', Order::STATUS_CANCELLED)
+            ->where('status', Order::STATUS_RECEIVED)
             ->whereDoesntHave('deliveryConfirmation')
             ->whereHas('orderItems.productSale', function ($query) {
                 $query->where('requires_delivery_confirmation', true)

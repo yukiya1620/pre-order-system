@@ -116,6 +116,32 @@ class FarmerDeliveryConfirmationApiTest extends TestCase
         $response->assertJsonPath('delivery_confirmations.1.id', $newer->id);
     }
 
+    public function test_index_excludes_unresponded_confirmation_of_delivered_order(): void
+    {
+        $farmer = User::factory()->farmer()->create();
+        $sale = $this->createSale();
+        $order = $this->createOrder($sale, Order::STATUS_DELIVERED);
+        $this->createConfirmation($order);
+
+        $response = $this->actingAs($farmer)->getJson('/api/v1/farmer/delivery-confirmations');
+
+        $response->assertOk();
+        $response->assertJsonCount(0, 'delivery_confirmations');
+    }
+
+    public function test_index_excludes_unresponded_confirmation_of_cancelled_order(): void
+    {
+        $farmer = User::factory()->farmer()->create();
+        $sale = $this->createSale();
+        $order = $this->createOrder($sale, Order::STATUS_CANCELLED);
+        $this->createConfirmation($order);
+
+        $response = $this->actingAs($farmer)->getJson('/api/v1/farmer/delivery-confirmations');
+
+        $response->assertOk();
+        $response->assertJsonCount(0, 'delivery_confirmations');
+    }
+
     // === respond: アクセス制御 ===
 
     public function test_guest_cannot_respond(): void
@@ -282,6 +308,56 @@ class FarmerDeliveryConfirmationApiTest extends TestCase
         $order->refresh();
         $this->assertSame(Order::STATUS_DELIVERY_CONFIRMED, $order->status);
         $this->assertSame(1, Notification::where('related_order_id', $order->id)->count());
+    }
+
+    // === respond: 注文ステータスによる拒否 ===
+
+    public function test_responding_to_delivered_order_is_rejected(): void
+    {
+        $farmer = User::factory()->farmer()->create();
+        $sale = $this->createSale();
+        $order = $this->createOrder($sale, Order::STATUS_DELIVERED);
+        $confirmation = $this->createConfirmation($order);
+
+        $response = $this->actingAs($farmer)->postJson("/api/v1/farmer/delivery-confirmations/{$confirmation->id}/respond", [
+            'response' => '配達可能',
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonPath('error.code', 'ORDER_NOT_RESPONDABLE');
+
+        $confirmation->refresh();
+        $this->assertNull($confirmation->responded_at);
+        $this->assertNull($confirmation->buyer_notified_at);
+
+        $order->refresh();
+        $this->assertSame(Order::STATUS_DELIVERED, $order->status);
+        $this->assertSame(now()->addDays(3)->toDateString(), $order->delivery_date->toDateString());
+        $this->assertSame(0, Notification::where('related_order_id', $order->id)->count());
+    }
+
+    public function test_responding_to_cancelled_order_is_rejected(): void
+    {
+        $farmer = User::factory()->farmer()->create();
+        $sale = $this->createSale();
+        $order = $this->createOrder($sale, Order::STATUS_CANCELLED);
+        $confirmation = $this->createConfirmation($order);
+
+        $response = $this->actingAs($farmer)->postJson("/api/v1/farmer/delivery-confirmations/{$confirmation->id}/respond", [
+            'response' => '配達可能',
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonPath('error.code', 'ORDER_NOT_RESPONDABLE');
+
+        $confirmation->refresh();
+        $this->assertNull($confirmation->responded_at);
+        $this->assertNull($confirmation->buyer_notified_at);
+
+        $order->refresh();
+        $this->assertSame(Order::STATUS_CANCELLED, $order->status);
+        $this->assertSame(now()->addDays(3)->toDateString(), $order->delivery_date->toDateString());
+        $this->assertSame(0, Notification::where('related_order_id', $order->id)->count());
     }
 
     // === respond: バリデーション ===

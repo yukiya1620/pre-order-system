@@ -8,16 +8,22 @@ use App\Models\DeliveryConfirmation;
 use App\Models\Notification;
 use App\Models\Order;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
 
 class DeliveryConfirmationController extends Controller
 {
     /**
-     * 未回答の配達確認一覧(通知が古い順)
+     * 未回答かつ注文が受付済のままの配達確認一覧(通知が古い順)。
+     * 配達完了・キャンセル済みの注文に紐づく確認は、回答してもステータスを
+     * 後退させるだけになるため一覧に出さない(受付済のみを許可するallowlist方式)。
      */
     public function index(): JsonResponse
     {
         $confirmations = DeliveryConfirmation::with('order.user', 'order.orderItems')
             ->whereNull('responded_at')
+            ->whereHas('order', function ($query) {
+                $query->where('status', Order::STATUS_RECEIVED);
+            })
             ->orderBy('notified_at')
             ->get();
 
@@ -26,44 +32,67 @@ class DeliveryConfirmationController extends Controller
 
     /**
      * 配達確認への回答。注文の状態を更新し、購入者へ自動通知する。
+     *
+     * 受付済の時点で配達確認が生成された後、農家がF3から先に配達完了/キャンセルに
+     * してしまうと、未回答の確認だけが残ることがある。そのまま回答を許すと注文の
+     * ステータスが配達完了/キャンセルから後退してしまうため、ロック取得後に
+     * 注文が受付済のままかを再検証する(数量減少・キャンセルのOrderAdjustmentServiceと
+     * 同じ「ロック後に再検証」の考え方)。
      */
     public function respond(RespondDeliveryConfirmationRequest $request, DeliveryConfirmation $deliveryConfirmation): JsonResponse
     {
-        if ($deliveryConfirmation->responded_at !== null) {
-            return response()->json([
-                'error' => [
-                    'code' => 'ALREADY_RESPONDED',
-                    'message' => 'この配達確認はすでに回答済みです。',
-                ],
-            ], 422);
-        }
+        return DB::transaction(function () use ($request, $deliveryConfirmation) {
+            $lockedConfirmation = DeliveryConfirmation::where('id', $deliveryConfirmation->id)
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        $response = $request->input('response');
+            $order = Order::where('id', $lockedConfirmation->order_id)
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        $deliveryConfirmation->update([
-            'response' => $response,
-            'new_delivery_date' => $request->input('new_delivery_date'),
-            'response_note' => $request->input('response_note'),
-            'responded_at' => now(),
-            'buyer_notified_at' => now(),
-        ]);
+            if ($lockedConfirmation->responded_at !== null) {
+                return response()->json([
+                    'error' => [
+                        'code' => 'ALREADY_RESPONDED',
+                        'message' => 'この配達確認はすでに回答済みです。',
+                    ],
+                ], 422);
+            }
 
-        $order = $deliveryConfirmation->order;
+            if ($order->status !== Order::STATUS_RECEIVED) {
+                return response()->json([
+                    'error' => [
+                        'code' => 'ORDER_NOT_RESPONDABLE',
+                        'message' => '受付済の注文以外には回答できません。',
+                    ],
+                ], 422);
+            }
 
-        if ($response === '配達可能') {
-            $order->update(['status' => Order::STATUS_DELIVERY_CONFIRMED]);
-        } elseif ($response === '配達日変更') {
-            $order->update([
-                'delivery_date' => $request->input('new_delivery_date'),
-                'status' => Order::STATUS_DELIVERY_CHANGED,
+            $response = $request->input('response');
+
+            $lockedConfirmation->update([
+                'response' => $response,
+                'new_delivery_date' => $request->input('new_delivery_date'),
+                'response_note' => $request->input('response_note'),
+                'responded_at' => now(),
+                'buyer_notified_at' => now(),
             ]);
-        }
 
-        $this->notifyBuyer($deliveryConfirmation, $order);
+            if ($response === '配達可能') {
+                $order->update(['status' => Order::STATUS_DELIVERY_CONFIRMED]);
+            } elseif ($response === '配達日変更') {
+                $order->update([
+                    'delivery_date' => $request->input('new_delivery_date'),
+                    'status' => Order::STATUS_DELIVERY_CHANGED,
+                ]);
+            }
 
-        return response()->json([
-            'delivery_confirmation' => $deliveryConfirmation->fresh()->load('order'),
-        ]);
+            $this->notifyBuyer($lockedConfirmation, $order);
+
+            return response()->json([
+                'delivery_confirmation' => $lockedConfirmation->fresh()->load('order'),
+            ]);
+        });
     }
 
     private function notifyBuyer(DeliveryConfirmation $confirmation, Order $order): void
