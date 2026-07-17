@@ -13,12 +13,23 @@ use App\Models\User;
 use App\Services\SalesService;
 use Database\Seeders\PortfolioDemoSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 use Tests\TestCase;
 
 class PortfolioDemoSeederTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // 画像コピー処理(prepareDemoImages())が実際のstorage/app/publicへ書き込まないよう、
+        // すべてのテストで共通してpublicディスクを偽装する。1テスト内で複数回runSeeder()を
+        // 呼ぶケースがあるため、setUp()で1回だけ偽装し、runSeeder()側では呼び直さない。
+        Storage::fake('public');
+    }
 
     private const DEMO_USER_EMAILS = [
         'demo-farmer@example.com',
@@ -45,6 +56,17 @@ class PortfolioDemoSeederTest extends TestCase
         '配達時間帯についてのお願い',
         '新玉ねぎ、まもなく販売終了です',
     ];
+
+    private const DEMO_PRODUCT_IMAGE_FILENAMES = [
+        '朝採れとうもろこし' => 'corn.jpg',
+        '完熟ミニトマト' => 'mini-tomato.jpg',
+        'ほくほくじゃがいも' => 'potato.jpg',
+        '採れたて新玉ねぎ' => 'new-onion.jpg',
+        '甘熟紅はるか' => 'sweet-potato.jpg',
+        '朝採れほうれん草' => 'spinach.jpg',
+    ];
+
+    private const DEMO_IMAGE_DIRECTORY = 'products/portfolio-demo';
 
     private function runSeeder(): void
     {
@@ -190,6 +212,77 @@ class PortfolioDemoSeederTest extends TestCase
 
         $demoOrderIds = $this->demoOrderIds();
         $this->assertTrue($notifications->pluck('related_order_id')->every(fn ($id) => $demoOrderIds->contains($id)));
+    }
+
+    public function test_product_image_paths_are_set_as_expected(): void
+    {
+        $this->runSeeder();
+
+        foreach (self::DEMO_PRODUCT_IMAGE_FILENAMES as $productName => $filename) {
+            $this->assertDatabaseHas('products', [
+                'name' => $productName,
+                'image' => self::DEMO_IMAGE_DIRECTORY.'/'.$filename,
+            ]);
+        }
+    }
+
+    public function test_product_images_are_copied_to_public_disk(): void
+    {
+        $this->runSeeder();
+
+        foreach (self::DEMO_PRODUCT_IMAGE_FILENAMES as $filename) {
+            Storage::disk('public')->assertExists(self::DEMO_IMAGE_DIRECTORY.'/'.$filename);
+        }
+    }
+
+    public function test_copied_images_match_source_bytes_exactly(): void
+    {
+        $this->runSeeder();
+
+        foreach (self::DEMO_PRODUCT_IMAGE_FILENAMES as $filename) {
+            $sourcePath = database_path('seeders/demo-assets/products/'.$filename);
+            $expected = file_get_contents($sourcePath);
+            $actual = Storage::disk('public')->get(self::DEMO_IMAGE_DIRECTORY.'/'.$filename);
+
+            $this->assertSame($expected, $actual, "{$filename} の内容が元画像と一致しません");
+        }
+    }
+
+    public function test_running_seeder_twice_overwrites_images_without_duplicates(): void
+    {
+        $this->runSeeder();
+        $this->runSeeder();
+
+        $demoImages = Storage::disk('public')->allFiles(self::DEMO_IMAGE_DIRECTORY);
+
+        $this->assertCount(6, $demoImages);
+
+        foreach (self::DEMO_PRODUCT_IMAGE_FILENAMES as $filename) {
+            $sourcePath = database_path('seeders/demo-assets/products/'.$filename);
+            $expected = file_get_contents($sourcePath);
+            $actual = Storage::disk('public')->get(self::DEMO_IMAGE_DIRECTORY.'/'.$filename);
+
+            $this->assertSame($expected, $actual);
+        }
+    }
+
+    public function test_seeder_does_not_affect_images_outside_demo_directory(): void
+    {
+        Storage::disk('public')->put('products/real-farmer-photo.jpg', 'not-a-demo-image');
+
+        $this->runSeeder();
+
+        // 実運用でアップロードされた画像(products/直下)はそのまま残る
+        Storage::disk('public')->assertExists('products/real-farmer-photo.jpg');
+        $this->assertSame('not-a-demo-image', Storage::disk('public')->get('products/real-farmer-photo.jpg'));
+
+        // デモ画像は products/ 直下ではなく products/portfolio-demo/ にのみ作られる
+        foreach (self::DEMO_PRODUCT_IMAGE_FILENAMES as $filename) {
+            Storage::disk('public')->assertMissing('products/'.$filename);
+        }
+
+        // products/ 直下には、事前に置いた1枚だけが存在する(デモ画像が紛れ込んでいない)
+        $this->assertSame(['products/real-farmer-photo.jpg'], Storage::disk('public')->files('products'));
     }
 
     public function test_seeder_aborts_when_ambiguous_product_name_exists(): void

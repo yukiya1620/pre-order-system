@@ -16,6 +16,7 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 
 /**
@@ -55,17 +56,32 @@ class PortfolioDemoSeeder extends Seeder
         '新玉ねぎ、まもなく販売終了です',
     ];
 
+    /**
+     * 商品名 => database/seeders/demo-assets/products/ 配下のファイル名。
+     * @var array<string, string>
+     */
+    private const DEMO_PRODUCT_IMAGE_FILENAMES = [
+        '朝採れとうもろこし' => 'corn.jpg',
+        '完熟ミニトマト' => 'mini-tomato.jpg',
+        'ほくほくじゃがいも' => 'potato.jpg',
+        '採れたて新玉ねぎ' => 'new-onion.jpg',
+        '甘熟紅はるか' => 'sweet-potato.jpg',
+        '朝採れほうれん草' => 'spinach.jpg',
+    ];
+
     public function run(): void
     {
         $this->guardAgainstProduction();
 
-        DB::transaction(function () {
+        $imagePaths = $this->prepareDemoImages();
+
+        DB::transaction(function () use ($imagePaths) {
             $this->deleteExistingDemoData();
 
             $categories = $this->createCategories();
             $farmer = $this->createFarmer();
             $buyers = $this->createBuyers();
-            $sales = $this->createProducts($categories);
+            $sales = $this->createProducts($categories, $imagePaths);
 
             $this->createPendingOrders($buyers, $sales, $farmer);
             $this->createDeliveredOrders($buyers, $sales, $farmer);
@@ -82,6 +98,50 @@ class PortfolioDemoSeeder extends Seeder
 
             throw new RuntimeException('PortfolioDemoSeeder cannot run in the production environment.');
         }
+    }
+
+    /**
+     * デモ商品画像の複製先ディレクトリ(publicディスク内)。
+     * 実際のアップロード機能が使う products/ 直下とは分け、デモデータであることを
+     * ディレクトリ名からも明確にする(実運用でアップロードされた画像と混ざらないように)。
+     */
+    private const DEMO_IMAGE_DIRECTORY = 'products/portfolio-demo';
+
+    /**
+     * デモ商品画像を storage/app/public/products/portfolio-demo/ へ複製する。
+     * DBトランザクションの外側で先に完結させる(ファイルコピーはロールバック対象外のため)。
+     * 6枚すべての存在・読み込み可否を先に検証してから、まとめてコピーする
+     * (途中まで複製してから不足に気づく、という状態にはしない)。
+     *
+     * @return array<string, string> 商品名 => products.image に保存する相対パス
+     */
+    private function prepareDemoImages(): array
+    {
+        foreach (self::DEMO_PRODUCT_IMAGE_FILENAMES as $filename) {
+            $sourcePath = database_path('seeders/demo-assets/products/'.$filename);
+
+            if (! is_file($sourcePath) || ! is_readable($sourcePath)) {
+                throw new RuntimeException(
+                    "デモ商品画像が見つからないか読み込めません: {$filename}(database/seeders/demo-assets/products/ に配置してください)"
+                );
+            }
+        }
+
+        $paths = [];
+
+        foreach (self::DEMO_PRODUCT_IMAGE_FILENAMES as $productName => $filename) {
+            $sourcePath = database_path('seeders/demo-assets/products/'.$filename);
+            $targetPath = self::DEMO_IMAGE_DIRECTORY.'/'.$filename;
+            $stored = Storage::disk('public')->put($targetPath, file_get_contents($sourcePath));
+
+            if (! $stored) {
+                throw new RuntimeException("デモ商品画像のコピーに失敗しました: {$filename}");
+            }
+
+            $paths[$productName] = $targetPath;
+        }
+
+        return $paths;
     }
 
     /**
@@ -208,9 +268,10 @@ class PortfolioDemoSeeder extends Seeder
 
     /**
      * @param  array<string, Category>  $categories
+     * @param  array<string, string>  $imagePaths  商品名 => products.image に保存する相対パス
      * @return array<string, ProductSale>
      */
-    private function createProducts(array $categories): array
+    private function createProducts(array $categories, array $imagePaths): array
     {
         $today = now()->startOfDay();
 
@@ -261,6 +322,7 @@ class PortfolioDemoSeeder extends Seeder
                 'description' => $definition['description'],
                 'category_id' => $categories[$definition['category']]->id,
                 'unit_label' => $definition['unit_label'],
+                'image' => $imagePaths[$name],
             ]);
 
             $isEnded = $definition['status'] === ProductSale::STATUS_ENDED;
