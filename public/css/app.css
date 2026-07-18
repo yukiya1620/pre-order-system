@@ -673,6 +673,22 @@ button[type="submit"]:disabled {
     opacity: 0.6;
     cursor: default;
 }
+/* 数量変更相談フォームの「戻る」。#announcement-cancel-edit-buttonと同じ、中立色の「やめる」系ボタンのパターン */
+#detail-cancel-quantity-change-form-button {
+    display: block;
+    width: 100%;
+    min-height: 56px;
+    font-size: 18px;
+    border-radius: 8px;
+    border: 1px solid var(--color-control-border);
+    background: #ffffff;
+    color: var(--color-text);
+    cursor: pointer;
+}
+#detail-cancel-quantity-change-form-button:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
 
 /* 商品管理画面(F5)。他画面のクラスと混ざらないよう products-page__ / product-card__ を接頭辞にする */
 .products-page__header {

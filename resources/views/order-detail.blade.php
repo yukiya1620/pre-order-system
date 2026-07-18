@@ -45,6 +45,34 @@
                 <p class="order-detail__total">合計金額: <span id="detail-total-amount"></span></p>
             </section>
 
+            <section id="detail-change-request-section" class="order-detail__section" hidden>
+                <h2>ご相談</h2>
+
+                <p id="detail-change-request-message" class="message message-error" role="alert" aria-live="assertive" hidden></p>
+                <p id="detail-change-request-success" class="message message-success" role="status" aria-live="polite" hidden></p>
+
+                <div id="detail-pending-request-info" hidden>
+                    <p id="detail-pending-request-heading"></p>
+                    <p id="detail-pending-request-quantity-detail" hidden></p>
+                    <p id="detail-pending-request-created-at"></p>
+                    <p>農家からの連絡をお待ちください。</p>
+                </div>
+
+                <div id="detail-change-request-buttons">
+                    <button type="button" id="detail-request-quantity-change-button" class="order-detail__reorder-button" hidden>数量変更を相談する</button>
+                    <button type="button" id="detail-request-cancellation-button" class="order-detail__cancel-button">キャンセルを相談する</button>
+                </div>
+
+                <div id="detail-quantity-change-form" hidden>
+                    <div class="field">
+                        <label for="detail-requested-quantity">希望する数量</label>
+                        <input type="number" id="detail-requested-quantity" min="1">
+                    </div>
+                    <button type="button" id="detail-submit-quantity-change-button" class="order-detail__reorder-button">相談を送信する</button>
+                    <button type="button" id="detail-cancel-quantity-change-form-button">戻る</button>
+                </div>
+            </section>
+
             <p id="order-detail-reorder-message" class="message message-error" hidden></p>
             <button type="button" id="order-detail-reorder-button" class="order-detail__reorder-button">前回と同じ内容で注文</button>
         </div>

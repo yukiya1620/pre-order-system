@@ -237,4 +237,128 @@ class OrderHistoryPageTest extends TestCase
         $response->assertOk();
         $response->assertSee('id="order-detail-reorder-button"', false);
     }
+
+    // === 数量変更・キャンセル相談(第2段階) ===
+
+    public function test_show_has_change_request_section_container(): void
+    {
+        $buyer = User::factory()->create();
+        $order = $this->createOrderFor($buyer);
+
+        $response = $this->actingAs($buyer)->get('/orders/'.$order->id);
+
+        $response->assertOk();
+        $response->assertSee('id="detail-change-request-section"', false);
+    }
+
+    public function test_show_has_quantity_change_request_button_label(): void
+    {
+        $buyer = User::factory()->create();
+        $order = $this->createOrderFor($buyer);
+
+        $response = $this->actingAs($buyer)->get('/orders/'.$order->id);
+
+        $response->assertOk();
+        $response->assertSee('id="detail-request-quantity-change-button"', false);
+        $response->assertSee('数量変更を相談する');
+    }
+
+    public function test_show_has_cancellation_request_button_label(): void
+    {
+        $buyer = User::factory()->create();
+        $order = $this->createOrderFor($buyer);
+
+        $response = $this->actingAs($buyer)->get('/orders/'.$order->id);
+
+        $response->assertOk();
+        $response->assertSee('id="detail-request-cancellation-button"', false);
+        $response->assertSee('キャンセルを相談する');
+    }
+
+    public function test_show_has_quantity_change_form_with_labelled_input(): void
+    {
+        $buyer = User::factory()->create();
+        $order = $this->createOrderFor($buyer);
+
+        $response = $this->actingAs($buyer)->get('/orders/'.$order->id);
+
+        $response->assertOk();
+        $response->assertSee('id="detail-quantity-change-form"', false);
+        $response->assertSee('for="detail-requested-quantity"', false);
+        $response->assertSee('id="detail-requested-quantity"', false);
+        $response->assertSee('id="detail-submit-quantity-change-button"', false);
+        $response->assertSee('id="detail-cancel-quantity-change-form-button"', false);
+    }
+
+    public function test_show_has_pending_request_info_container(): void
+    {
+        $buyer = User::factory()->create();
+        $order = $this->createOrderFor($buyer);
+
+        $response = $this->actingAs($buyer)->get('/orders/'.$order->id);
+
+        $response->assertOk();
+        $response->assertSee('id="detail-pending-request-info"', false);
+        $response->assertSee('id="detail-pending-request-heading"', false);
+        $response->assertSee('id="detail-pending-request-created-at"', false);
+        $response->assertSee('農家からの連絡をお待ちください');
+    }
+
+    /**
+     * ボタンの文言・入力欄はBladeに静的に書かれているためHTTPレスポンスで確認できるが、
+     * APIパス・エラー文言はJS内で組み立てられるため、F9で確立したパターン
+     * (対象JSファイルをfile_get_contentsで読み込みassertStringContainsStringで確認)を使う。
+     */
+    public function test_order_detail_js_contains_change_request_api_paths(): void
+    {
+        $js = file_get_contents(public_path('js/order-detail.js'));
+
+        $this->assertStringContainsString('/quantity-change-requests', $js);
+        $this->assertStringContainsString('/cancellation-requests', $js);
+    }
+
+    public function test_order_detail_js_contains_change_request_error_messages(): void
+    {
+        $js = file_get_contents(public_path('js/order-detail.js'));
+
+        $this->assertStringContainsString('すでにこの注文について相談中です。', $js);
+        $this->assertStringContainsString('この注文は現在、変更やキャンセルの相談を受け付けられません。', $js);
+        $this->assertStringContainsString('数量が1点のため、数量変更はできません。キャンセル相談をご利用ください。', $js);
+        $this->assertStringContainsString('現在の数量より少ない、1点以上の数量を入力してください。', $js);
+        $this->assertStringContainsString('この注文は画面から変更相談できません。農家へ直接ご連絡ください。', $js);
+    }
+
+    /**
+     * 購入者側の既存注文詳細は数量を「点」表記しているため、今回の相談表示・確認文も
+     * 「個」ではなく「点」に揃える(農家側・他画面は今回の対象外)。
+     */
+    public function test_order_detail_js_uses_ten_as_quantity_unit_not_ko(): void
+    {
+        $js = file_get_contents(public_path('js/order-detail.js'));
+
+        $this->assertStringContainsString('点から', $js);
+        $this->assertStringContainsString('点へ変更する相談を農家へ送ります', $js);
+        $this->assertStringNotContainsString('個から', $js);
+        $this->assertStringNotContainsString('個へ変更する', $js);
+    }
+
+    public function test_show_change_request_messages_have_aria_live(): void
+    {
+        $buyer = User::factory()->create();
+        $order = $this->createOrderFor($buyer);
+
+        $response = $this->actingAs($buyer)->get('/orders/'.$order->id);
+
+        $response->assertOk();
+        $response->assertSee('id="detail-change-request-message" class="message message-error" role="alert" aria-live="assertive"', false);
+        $response->assertSee('id="detail-change-request-success" class="message message-success" role="status" aria-live="polite"', false);
+    }
+
+    public function test_order_detail_js_contains_confirmation_prompts(): void
+    {
+        $js = file_get_contents(public_path('js/order-detail.js'));
+
+        $this->assertStringContainsString('よろしいですか?', $js);
+        $this->assertStringContainsString('注文はこの時点ではキャンセルされません。', $js);
+    }
 }
