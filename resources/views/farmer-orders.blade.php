@@ -25,6 +25,7 @@
                 <option value="配達日変更">配達日変更</option>
                 <option value="配達完了">配達完了</option>
                 <option value="キャンセル">キャンセル</option>
+                <option value="pending_change_request">相談あり</option>
             </select>
         </div>
 

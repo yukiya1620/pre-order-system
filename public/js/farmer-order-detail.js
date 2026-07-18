@@ -19,7 +19,22 @@
     var reduceQuantityButton = document.getElementById('detail-reduce-quantity-button');
     var cancelOrderButton = document.getElementById('detail-cancel-order-button');
 
+    var changeRequestSectionEl = document.getElementById('detail-change-request-section');
+    var changeRequestMessageEl = document.getElementById('detail-change-request-message');
+    var changeRequestSuccessEl = document.getElementById('detail-change-request-success');
+    var changeRequestTypeEl = document.getElementById('detail-change-request-type');
+    var changeRequestSummaryEl = document.getElementById('detail-change-request-summary');
+    var changeRequestCreatedAtEl = document.getElementById('detail-change-request-created-at');
+    var changeRequestNoteInput = document.getElementById('detail-change-request-note');
+    var resolveWithoutChangeButton = document.getElementById('detail-resolve-without-change-button');
+
     var NOT_ADJUSTABLE_STATUSES = ['配達完了', 'キャンセル'];
+
+    // resolve-without-change APIのエラーコード → 画面に出す文言
+    var CHANGE_REQUEST_ERROR_MESSAGES = {
+        ALREADY_RESOLVED: 'この相談はすでに対応済みです。最新の状態を再読み込みします。',
+        ORDER_MISMATCH: '相談内容と注文情報を確認できませんでした。画面を再読み込みしてください。'
+    };
 
     var statusBadgeClasses = {
         '受付済': 'order-status-badge--received',
@@ -103,7 +118,7 @@
             row.appendChild(nameCell);
 
             var quantityCell = document.createElement('td');
-            quantityCell.textContent = item.quantity + '袋';
+            quantityCell.textContent = item.quantity + unitLabelFor(item);
             row.appendChild(quantityCell);
 
             var priceCell = document.createElement('td');
@@ -163,6 +178,131 @@
     }
 
     var currentOrder = null;
+
+    function showChangeRequestError(text) {
+        changeRequestSuccessEl.hidden = true;
+        changeRequestMessageEl.textContent = text;
+        changeRequestMessageEl.hidden = false;
+    }
+
+    function showChangeRequestSuccess(text) {
+        changeRequestMessageEl.hidden = true;
+        changeRequestSuccessEl.textContent = text;
+        changeRequestSuccessEl.hidden = false;
+    }
+
+    /**
+     * 商品の単位(袋・本・パックなど)は明細のproduct_sale.product.unit_labelを使う。
+     * 取得できない場合だけ、この画面で従来使っていた「袋」にそろえる。
+     * 商品明細テーブル・購入者からのご相談セクション、どちらもこの関数で統一する。
+     */
+    function unitLabelFor(item) {
+        var unit = item && item.product_sale && item.product_sale.product && item.product_sale.product.unit_label;
+        return unit || '袋';
+    }
+
+    /**
+     * 未処理の相談(pending_change_request)があるときだけセクションを表示する。
+     * 数量減少・キャンセルが確定されて相談が自動解消された場合や、「変更せず終了」した場合は
+     * 再取得のたびにここでhiddenへ戻る。
+     */
+    function renderPendingChangeRequest(order) {
+        changeRequestMessageEl.hidden = true;
+        changeRequestSuccessEl.hidden = true;
+
+        var pending = order.pending_change_request;
+
+        if (!pending) {
+            changeRequestSectionEl.hidden = true;
+            return;
+        }
+
+        changeRequestSectionEl.hidden = false;
+        changeRequestNoteInput.value = '';
+
+        var unit = unitLabelFor((order.order_items || [])[0]);
+
+        if (pending.request_type === 'quantity_reduction') {
+            changeRequestTypeEl.textContent = '数量変更';
+            changeRequestSummaryEl.textContent =
+                pending.quantity_at_request + unit + 'から' + pending.requested_quantity + unit + 'への変更希望';
+        } else {
+            changeRequestTypeEl.textContent = 'キャンセル';
+            changeRequestSummaryEl.textContent =
+                '注文キャンセルの相談です(相談時点の数量: ' + pending.quantity_at_request + unit + ')';
+        }
+
+        changeRequestCreatedAtEl.textContent = formatDateTime(pending.created_at);
+    }
+
+    resolveWithoutChangeButton.addEventListener('click', function () {
+        var pending = currentOrder && currentOrder.pending_change_request;
+        if (!pending) {
+            return;
+        }
+
+        if (!window.confirm('注文内容を変更せず、この相談を終了します。購入者へ通知されます。よろしいですか?')) {
+            return;
+        }
+
+        resolveWithoutChangeButton.disabled = true;
+        changeRequestMessageEl.hidden = true;
+        changeRequestSuccessEl.hidden = true;
+
+        fetch('/api/v1/farmer/order-change-requests/' + pending.id + '/resolve-without-change', {
+            method: 'PUT',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrfToken
+            },
+            body: JSON.stringify({ note: changeRequestNoteInput.value || null })
+        }).then(function (response) {
+            if (response.status === 401) {
+                resolveWithoutChangeButton.disabled = false;
+                showChangeRequestError('ログインの有効期限が切れています。もう一度ログインしてください。');
+                return null;
+            }
+            if (response.status === 404) {
+                resolveWithoutChangeButton.disabled = false;
+                showChangeRequestError('相談内容と注文情報を確認できませんでした。画面を再読み込みしてください。');
+                return null;
+            }
+            if (response.status === 422) {
+                return response.json().then(function (data) {
+                    var code = data.error && data.error.code;
+                    showChangeRequestError(
+                        CHANGE_REQUEST_ERROR_MESSAGES[code]
+                        || (data.error && data.error.message)
+                        || 'この操作は行えませんでした。画面を確認してください。'
+                    );
+
+                    if (code === 'ALREADY_RESOLVED') {
+                        // 古い相談表示を残さないよう、最新の状態を取り直す
+                        // (ボタンの有効化は再取得後のrenderPendingChangeRequestに任せる)
+                        loadOrder();
+                    } else {
+                        resolveWithoutChangeButton.disabled = false;
+                    }
+                    return null;
+                });
+            }
+            if (!response.ok) {
+                throw new Error('unexpected status ' + response.status);
+            }
+            return response.json();
+        }).then(function (data) {
+            if (!data) {
+                return;
+            }
+            showChangeRequestSuccess('相談を終了しました。');
+            loadOrder();
+        }).catch(function () {
+            resolveWithoutChangeButton.disabled = false;
+            showChangeRequestError('相談を終了できませんでした。時間をおいてもう一度お試しください。');
+        });
+    });
 
     /**
      * 数量が2以上なら「数量を減らす」「注文をキャンセルする」の両方、
@@ -313,6 +453,7 @@
         }
 
         renderDeliveryConfirmation(order.delivery_confirmation);
+        renderPendingChangeRequest(order);
         renderActions(order);
     }
 

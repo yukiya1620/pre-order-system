@@ -7,6 +7,7 @@
     var csrfToken = document.querySelector('meta[name="csrf-token"]').content;
     var pendingCountEl = document.getElementById('farmer-home-pending-count');
     var todaySalesEl = document.getElementById('farmer-home-today-sales');
+    var changeRequestCountEl = document.getElementById('farmer-home-change-request-count');
     var messageEl = document.getElementById('farmer-home-message');
     var logoutButton = document.getElementById('farmer-home-logout-button');
 
@@ -65,6 +66,32 @@
         });
     }
 
+    /**
+     * 要対応(変更相談)件数。配達確認の要対応件数とは別枠で表示する(合算しない)。
+     * 一覧を取得して数えるのではなく、専用のcount APIが返す件数をそのまま使う。
+     */
+    function loadChangeRequestCount() {
+        fetch('/api/v1/farmer/order-change-requests/count', {
+            method: 'GET',
+            credentials: 'same-origin',
+            headers: { 'Accept': 'application/json' }
+        }).then(function (response) {
+            if (!response.ok) {
+                throw new Error('unexpected status ' + response.status);
+            }
+            return response.json();
+        }).then(function (data) {
+            // 0件も正常な値なので、falsyチェックではなく型で判定する
+            if (typeof data.count !== 'number') {
+                throw new Error('unexpected response shape');
+            }
+            changeRequestCountEl.textContent = data.count + '件';
+        }).catch(function () {
+            // 取得できていないのに0件と誤解されないよう、失敗だと分かる文言にする
+            changeRequestCountEl.textContent = '取得できませんでした';
+        });
+    }
+
     logoutButton.addEventListener('click', function () {
         if (logoutButton.disabled) {
             return;
@@ -95,4 +122,5 @@
 
     loadPendingCount();
     loadTodaySales();
+    loadChangeRequestCount();
 })();

@@ -78,12 +78,25 @@
 
         if (filter === 'active') {
             params.set('active_only', '1');
+        } else if (filter === 'pending_change_request') {
+            params.set('has_pending_change_request', '1');
         } else if (filter !== 'all') {
             params.set('status', filter);
         }
         params.set('page', String(page));
 
         return params.toString();
+    }
+
+    /**
+     * F1の「要対応(変更相談)」から遷移してきた場合、URLの?filter=pending_change_requestを見て
+     * 「相談あり」を選択した状態で一覧を開始する(値の完全一致で判定する)。
+     */
+    function applyInitialFilterFromQueryString() {
+        var params = new URLSearchParams(window.location.search);
+        if (params.get('filter') === 'pending_change_request') {
+            filterSelect.value = 'pending_change_request';
+        }
     }
 
     function setCardBusy(card, busy) {
@@ -238,9 +251,18 @@
         return wrapper;
     }
 
+    /**
+     * 商品の単位(袋・本・パックなど)は明細のproduct_sale.product.unit_labelを使う。
+     * 取得できない場合だけ、この画面で従来使っていた「袋」にそろえる(F4と同じ考え方)。
+     */
+    function unitLabelFor(item) {
+        var unit = item && item.product_sale && item.product_sale.product && item.product_sale.product.unit_label;
+        return unit || '袋';
+    }
+
     function buildCard(order) {
         var items = (order.order_items || []).map(function (item) {
-            return item.product_name + ' ' + item.quantity + '袋';
+            return item.product_name + ' ' + item.quantity + unitLabelFor(item);
         }).join(' / ');
 
         var card = document.createElement('div');
@@ -265,6 +287,13 @@
         statusBadge.className = 'order-card__status-badge';
         card.appendChild(statusBadge);
         updateStatusBadge(card, order.status);
+
+        if (order.pending_change_request) {
+            var changeRequestBadge = document.createElement('span');
+            changeRequestBadge.className = 'order-card__change-request-badge';
+            changeRequestBadge.textContent = '💬 相談あり';
+            card.appendChild(changeRequestBadge);
+        }
 
         if (order.status !== 'キャンセル') {
             var completeButton = document.createElement('button');
@@ -366,5 +395,6 @@
         loadOrders();
     });
 
+    applyInitialFilterFromQueryString();
     loadOrders();
 })();

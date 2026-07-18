@@ -225,6 +225,15 @@ button[type="submit"]:disabled {
     font-size: 22px;
     font-weight: bold;
 }
+/* 要対応(変更相談)だけリンク化するための最小限のリセット。項目全体をタップ対象にする */
+.farmer-home__overview-link {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    color: inherit;
+    text-decoration: none;
+}
 .farmer-home__menu {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -477,6 +486,17 @@ button[type="submit"]:disabled {
     background: #fdecea;
     color: var(--color-warning);
 }
+/* 購入者からの未処理相談があるカードに付けるバッジ(ステータスとは別枠、色ではなく文字で示す) */
+.order-card__change-request-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 14px;
+    font-weight: bold;
+    margin: 0 0 16px;
+    background: #ede7f6;
+    color: #4527a0;
+}
 .order-card__complete-button {
     display: block;
     width: 100%;
@@ -670,6 +690,24 @@ button[type="submit"]:disabled {
     cursor: pointer;
 }
 .order-detail__cancel-button:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+/* F4「変更せず相談を終了する」。削除系の強い赤ではなく、既存の「やめる」系と同じ中立色にする */
+#detail-resolve-without-change-button {
+    display: block;
+    width: 100%;
+    min-height: 56px;
+    font-size: 18px;
+    font-weight: bold;
+    border-radius: 8px;
+    border: 1px solid var(--color-control-border);
+    background: #ffffff;
+    color: var(--color-text);
+    cursor: pointer;
+    margin-top: 12px;
+}
+#detail-resolve-without-change-button:disabled {
     opacity: 0.6;
     cursor: default;
 }

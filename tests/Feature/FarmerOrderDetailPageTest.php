@@ -181,4 +181,114 @@ class FarmerOrderDetailPageTest extends TestCase
         $response->assertOk();
         $response->assertSee('data-order-detail-base-url="'.url('/farmer/orders').'"', false);
     }
+
+    // === 購入者からのご相談(第3段階) ===
+
+    public function test_page_has_change_request_section_container(): void
+    {
+        $order = $this->createOrder();
+        $farmer = User::factory()->farmer()->create();
+
+        $response = $this->actingAs($farmer)->get('/farmer/orders/'.$order->id);
+
+        $response->assertOk();
+        $response->assertSee('id="detail-change-request-section"', false);
+        $response->assertSee('購入者からのご相談');
+    }
+
+    public function test_page_has_change_request_type_quantity_and_datetime_elements(): void
+    {
+        $order = $this->createOrder();
+        $farmer = User::factory()->farmer()->create();
+
+        $response = $this->actingAs($farmer)->get('/farmer/orders/'.$order->id);
+
+        $response->assertOk();
+        $response->assertSee('id="detail-change-request-type"', false);
+        $response->assertSee('id="detail-change-request-summary"', false);
+        $response->assertSee('id="detail-change-request-created-at"', false);
+    }
+
+    public function test_page_has_change_request_note_field_with_maxlength(): void
+    {
+        $order = $this->createOrder();
+        $farmer = User::factory()->farmer()->create();
+
+        $response = $this->actingAs($farmer)->get('/farmer/orders/'.$order->id);
+
+        $response->assertOk();
+        $response->assertSee('for="detail-change-request-note"', false);
+        $response->assertSee('id="detail-change-request-note" maxlength="255"', false);
+    }
+
+    public function test_page_has_resolve_without_change_button(): void
+    {
+        $order = $this->createOrder();
+        $farmer = User::factory()->farmer()->create();
+
+        $response = $this->actingAs($farmer)->get('/farmer/orders/'.$order->id);
+
+        $response->assertOk();
+        $response->assertSee('id="detail-resolve-without-change-button"', false);
+        $response->assertSee('変更せず相談を終了する');
+    }
+
+    public function test_page_has_change_request_aria_live_attributes(): void
+    {
+        $order = $this->createOrder();
+        $farmer = User::factory()->farmer()->create();
+
+        $response = $this->actingAs($farmer)->get('/farmer/orders/'.$order->id);
+
+        $response->assertOk();
+        $response->assertSee('id="detail-change-request-message" class="message message-error" role="alert" aria-live="assertive"', false);
+        $response->assertSee('id="detail-change-request-success" class="message message-success" role="status" aria-live="polite"', false);
+    }
+
+    /**
+     * F9で確立したパターン(JSファイルをfile_get_contentsで読み込みassertStringContainsStringで確認)。
+     */
+    public function test_order_detail_js_contains_resolve_without_change_api_path(): void
+    {
+        $js = file_get_contents(public_path('js/farmer-order-detail.js'));
+
+        $this->assertStringContainsString('/api/v1/farmer/order-change-requests/', $js);
+        $this->assertStringContainsString('/resolve-without-change', $js);
+    }
+
+    public function test_order_detail_js_contains_resolve_without_change_confirmation_text(): void
+    {
+        $js = file_get_contents(public_path('js/farmer-order-detail.js'));
+
+        $this->assertStringContainsString('注文内容を変更せず', $js);
+        $this->assertStringContainsString('購入者へ通知されます', $js);
+    }
+
+    public function test_order_detail_js_handles_already_resolved_error(): void
+    {
+        $js = file_get_contents(public_path('js/farmer-order-detail.js'));
+
+        $this->assertStringContainsString('ALREADY_RESOLVED', $js);
+        $this->assertStringContainsString('この相談はすでに対応済みです。最新の状態を再読み込みします。', $js);
+    }
+
+    public function test_order_detail_js_uses_unit_label_from_order_item_with_fallback(): void
+    {
+        $js = file_get_contents(public_path('js/farmer-order-detail.js'));
+
+        $this->assertStringContainsString('unit_label', $js);
+        $this->assertStringContainsString("return unit || '袋';", $js);
+    }
+
+    /**
+     * 商品明細テーブルの数量表示も、相談セクションと同じunitLabelForを使うべきで、
+     * 「袋」への固定連結ではないことを確認する(既存の表示不整合の修正)。
+     */
+    public function test_order_detail_js_item_table_uses_unit_label_not_fixed_bag(): void
+    {
+        $js = file_get_contents(public_path('js/farmer-order-detail.js'));
+
+        $this->assertStringContainsString('quantityCell.textContent = item.quantity + unitLabelFor(item);', $js);
+        $this->assertStringNotContainsString("item.quantity + '袋'", $js);
+    }
 }

@@ -105,4 +105,54 @@ class FarmerOrdersPageTest extends TestCase
         $response->assertSee('href="'.route('farmer.orders.create').'"', false);
         $response->assertDontSee('href="#"', false);
     }
+
+    // === 購入者からの変更相談(第3段階) ===
+
+    public function test_status_filter_has_pending_change_request_option(): void
+    {
+        $farmer = User::factory()->farmer()->create();
+
+        $response = $this->actingAs($farmer)->get('/farmer/orders');
+
+        $response->assertOk();
+        $response->assertSee('value="pending_change_request"', false);
+        $response->assertSee('相談あり');
+    }
+
+    public function test_page_js_reads_filter_query_string_with_url_search_params(): void
+    {
+        $js = file_get_contents(public_path('js/farmer-orders.js'));
+
+        $this->assertStringContainsString('new URLSearchParams(window.location.search)', $js);
+        $this->assertStringContainsString("params.get('filter') === 'pending_change_request'", $js);
+    }
+
+    public function test_page_js_sends_has_pending_change_request_param(): void
+    {
+        $js = file_get_contents(public_path('js/farmer-orders.js'));
+
+        $this->assertStringContainsString("params.set('has_pending_change_request', '1')", $js);
+    }
+
+    public function test_page_js_builds_change_request_badge_only_when_present(): void
+    {
+        $js = file_get_contents(public_path('js/farmer-orders.js'));
+
+        $this->assertStringContainsString('order-card__change-request-badge', $js);
+        $this->assertStringContainsString('相談あり', $js);
+        $this->assertStringContainsString('if (order.pending_change_request)', $js);
+    }
+
+    /**
+     * カードの数量表示は商品ごとのunit_label(本・パックなど)を使うべきで、
+     * 「袋」への固定連結ではないことを確認する(既存の表示不整合の修正)。
+     */
+    public function test_page_js_uses_product_unit_label_for_card_quantity(): void
+    {
+        $js = file_get_contents(public_path('js/farmer-orders.js'));
+
+        $this->assertStringContainsString('function unitLabelFor', $js);
+        $this->assertStringContainsString('unit_label', $js);
+        $this->assertStringNotContainsString("item.quantity + '袋'", $js);
+    }
 }

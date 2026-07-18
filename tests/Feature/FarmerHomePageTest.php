@@ -161,4 +161,45 @@ class FarmerHomePageTest extends TestCase
         $response->assertOk();
         $response->assertSee('js/farmer-home.js', false);
     }
+
+    // === 要対応(変更相談)(第3段階) ===
+
+    public function test_farmer_home_has_change_request_overview_element(): void
+    {
+        $farmer = User::factory()->farmer()->create();
+
+        $response = $this->actingAs($farmer)->get('/farmer');
+
+        $response->assertOk();
+        $response->assertSee('id="farmer-home-change-request-count"', false);
+        $response->assertSee('要対応(変更相談)');
+    }
+
+    public function test_farmer_home_has_link_to_pending_change_request_filter(): void
+    {
+        $farmer = User::factory()->farmer()->create();
+
+        $response = $this->actingAs($farmer)->get('/farmer');
+
+        $response->assertOk();
+        $response->assertSee(
+            'href="'.route('farmer.orders', ['filter' => 'pending_change_request']).'"',
+            false
+        );
+    }
+
+    public function test_farmer_home_js_contains_change_request_count_api_path(): void
+    {
+        $js = file_get_contents(public_path('js/farmer-home.js'));
+
+        $this->assertStringContainsString('/api/v1/farmer/order-change-requests/count', $js);
+    }
+
+    public function test_farmer_home_js_has_failure_text_for_change_request_count(): void
+    {
+        $js = file_get_contents(public_path('js/farmer-home.js'));
+
+        $this->assertStringContainsString('loadChangeRequestCount', $js);
+        $this->assertStringContainsString('取得できませんでした', $js);
+    }
 }

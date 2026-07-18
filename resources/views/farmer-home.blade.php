@@ -25,6 +25,12 @@
                 <span class="farmer-home__overview-label">💰 本日の確定売上</span>
                 <span class="farmer-home__overview-value" id="farmer-home-today-sales">読み込み中…</span>
             </div>
+            <div class="farmer-home__overview-item">
+                <a href="{{ route('farmer.orders', ['filter' => 'pending_change_request']) }}" id="farmer-home-change-request-link" class="farmer-home__overview-link">
+                    <span class="farmer-home__overview-label">💬 要対応(変更相談)</span>
+                    <span class="farmer-home__overview-value" id="farmer-home-change-request-count">読み込み中…</span>
+                </a>
+            </div>
         </section>
 
         <nav class="farmer-home__menu" aria-label="業務メニュー">

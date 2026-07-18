@@ -71,6 +71,24 @@
                 </div>
             </section>
 
+            <section id="detail-change-request-section" class="order-detail__section" hidden>
+                <h2>購入者からのご相談</h2>
+
+                <p id="detail-change-request-message" class="message message-error" role="alert" aria-live="assertive" hidden></p>
+                <p id="detail-change-request-success" class="message message-success" role="status" aria-live="polite" hidden></p>
+
+                <p>相談種別: <span id="detail-change-request-type"></span></p>
+                <p id="detail-change-request-summary"></p>
+                <p>相談日時: <span id="detail-change-request-created-at"></span></p>
+
+                <div class="field">
+                    <label for="detail-change-request-note">メモ(任意)</label>
+                    <textarea id="detail-change-request-note" maxlength="255"></textarea>
+                </div>
+
+                <button type="button" id="detail-resolve-without-change-button">変更せず相談を終了する</button>
+            </section>
+
             <section id="detail-actions-section" class="order-detail__section" hidden>
                 <h2>注文の変更</h2>
                 <p class="field-hint">購入者へ電話等で確認したうえで、変更を確定してください。</p>
