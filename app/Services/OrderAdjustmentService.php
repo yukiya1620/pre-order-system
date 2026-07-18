@@ -6,6 +6,7 @@ use App\Exceptions\OrderPlacementException;
 use App\Models\Notification;
 use App\Models\Order;
 use App\Models\OrderAdjustment;
+use App\Models\OrderChangeRequest;
 use App\Models\OrderItem;
 use App\Models\ProductSale;
 use App\Models\User;
@@ -66,7 +67,7 @@ class OrderAdjustmentService
                 'total_amount' => $lockedOrder->orderItems()->sum('subtotal'),
             ]);
 
-            OrderAdjustment::create([
+            $adjustment = OrderAdjustment::create([
                 'order_id' => $lockedOrder->id,
                 'order_item_id' => $orderItem->id,
                 'change_type' => OrderAdjustment::CHANGE_TYPE_QUANTITY_REDUCED,
@@ -88,6 +89,8 @@ class OrderAdjustmentService
                 'related_order_id' => $lockedOrder->id,
                 'is_read' => false,
             ]);
+
+            $this->resolvePendingChangeRequest($lockedOrder, $adjustment, $farmer);
 
             return $lockedOrder->fresh(['orderItems', 'user']);
         });
@@ -116,7 +119,7 @@ class OrderAdjustmentService
 
             $lockedOrder->update(['status' => Order::STATUS_CANCELLED]);
 
-            OrderAdjustment::create([
+            $adjustment = OrderAdjustment::create([
                 'order_id' => $lockedOrder->id,
                 'order_item_id' => $orderItem->id,
                 'change_type' => OrderAdjustment::CHANGE_TYPE_CANCELLED,
@@ -138,6 +141,8 @@ class OrderAdjustmentService
                 'related_order_id' => $lockedOrder->id,
                 'is_read' => false,
             ]);
+
+            $this->resolvePendingChangeRequest($lockedOrder, $adjustment, $farmer);
 
             return $lockedOrder->fresh(['orderItems', 'user']);
         });
@@ -187,5 +192,35 @@ class OrderAdjustmentService
         if ($productSale->stock_quantity > 0 && $productSale->status === ProductSale::STATUS_SOLD_OUT) {
             $productSale->update(['status' => ProductSale::STATUS_ON_SALE]);
         }
+    }
+
+    /**
+     * この注文に購入者からの未処理相談(OrderChangeRequest)があれば、
+     * 今回の数量減少・キャンセル確定によって自動的に解消する。
+     * 相談の種別(数量変更/キャンセル)と実際の確定内容が一致しなくても解消扱いにする
+     * (例: 数量変更を相談されたが全キャンセルで対応した場合も、相談自体は解消済みとする)。
+     *
+     * 呼び出し元(reduceQuantity/cancel)が既にOrder行をlockForUpdate()済みのため、
+     * このメソッドはさらにOrderChangeRequest行をlockForUpdate()するだけでよい。
+     * 購入者側のresolveWithoutChange()も必ずOrder行を先にロックするため、
+     * 双方の処理が同時に来ても直列に実行される。
+     */
+    private function resolvePendingChangeRequest(Order $order, OrderAdjustment $adjustment, User $farmer): void
+    {
+        $pendingRequest = OrderChangeRequest::where('order_id', $order->id)
+            ->whereNull('resolved_at')
+            ->lockForUpdate()
+            ->first();
+
+        if (! $pendingRequest) {
+            return;
+        }
+
+        $pendingRequest->update([
+            'resolution_type' => OrderChangeRequest::RESOLUTION_TYPE_ADJUSTMENT_APPLIED,
+            'resolved_by' => $farmer->id,
+            'resolved_order_adjustment_id' => $adjustment->id,
+            'resolved_at' => now(),
+        ]);
     }
 }

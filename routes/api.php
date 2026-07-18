@@ -9,7 +9,9 @@ use App\Http\Controllers\Api\V1\Farmer\OrderController as FarmerOrderController;
 use App\Http\Controllers\Api\V1\Farmer\ProductController as FarmerProductController;
 use App\Http\Controllers\Api\V1\Farmer\ProductSaleController;
 use App\Http\Controllers\Api\V1\Farmer\SalesController;
+use App\Http\Controllers\Api\V1\Farmer\OrderChangeRequestController as FarmerOrderChangeRequestController;
 use App\Http\Controllers\Api\V1\NotificationController;
+use App\Http\Controllers\Api\V1\OrderChangeRequestController;
 use App\Http\Controllers\Api\V1\OrderController;
 use App\Http\Controllers\Api\V1\ProductController;
 use App\Http\Controllers\Api\V1\SmsAuthController;
@@ -45,6 +47,11 @@ Route::prefix('v1')->group(function () {
         Route::post('orders/preview', [OrderController::class, 'preview']);
         Route::post('orders', [OrderController::class, 'store']);
         Route::post('orders/{order}/reorder-preview', [OrderController::class, 'reorderPreview']);
+
+        // 購入者からの「数量変更を相談する」「キャンセルを相談する」。
+        // この時点では注文・在庫・売上に一切触れない(実際の確定は農家がF4の既存機能で行う)。
+        Route::post('orders/{order}/quantity-change-requests', [OrderChangeRequestController::class, 'requestQuantityChange']);
+        Route::post('orders/{order}/cancellation-requests', [OrderChangeRequestController::class, 'requestCancellation']);
     });
 
     // 共通(購入者・農家どちらも):通知
@@ -79,6 +86,11 @@ Route::prefix('v1')->group(function () {
         Route::put('orders/{order}/complete', [FarmerOrderController::class, 'complete']);
         Route::put('orders/{order}/reduce-quantity', [FarmerOrderController::class, 'reduceQuantity']);
         Route::put('orders/{order}/cancel', [FarmerOrderController::class, 'cancel']);
+
+        // 購入者からの数量変更・キャンセル相談。件数取得と「変更せず終了する」のみ
+        // (実際の確定は既存のreduce-quantity/cancelを使う)。
+        Route::get('order-change-requests/count', [FarmerOrderChangeRequestController::class, 'count']);
+        Route::put('order-change-requests/{orderChangeRequest}/resolve-without-change', [FarmerOrderChangeRequestController::class, 'resolveWithoutChange']);
 
         // 4.8 売上
         Route::get('sales-summary', [SalesController::class, 'summary']);

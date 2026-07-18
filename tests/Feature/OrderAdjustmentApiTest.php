@@ -6,6 +6,7 @@ use App\Models\Category;
 use App\Models\Notification;
 use App\Models\Order;
 use App\Models\OrderAdjustment;
+use App\Models\OrderChangeRequest;
 use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\ProductSale;
@@ -64,6 +65,99 @@ class OrderAdjustmentApiTest extends TestCase
         ]);
 
         return $order;
+    }
+
+    private function createPendingChangeRequest(Order $order, string $type = OrderChangeRequest::REQUEST_TYPE_CANCELLATION, ?int $requestedQuantity = null): OrderChangeRequest
+    {
+        $orderItem = $order->orderItems()->first();
+
+        return OrderChangeRequest::create([
+            'order_id' => $order->id,
+            'order_item_id' => $orderItem->id,
+            'request_type' => $type,
+            'quantity_at_request' => $orderItem->quantity,
+            'requested_quantity' => $requestedQuantity,
+            'requested_by' => $order->user_id,
+        ]);
+    }
+
+    // === 購入者からの相談の自動解消 ===
+
+    public function test_reduce_quantity_auto_resolves_pending_change_request(): void
+    {
+        $sale = $this->createSale(['stock_quantity' => 5]);
+        $order = $this->createOrder($sale, 3);
+        $farmer = User::factory()->farmer()->create();
+        $changeRequest = $this->createPendingChangeRequest($order, OrderChangeRequest::REQUEST_TYPE_QUANTITY_REDUCTION, 1);
+
+        $response = $this->actingAs($farmer)->putJson("/api/v1/farmer/orders/{$order->id}/reduce-quantity", [
+            'quantity' => 1,
+            'confirmed_with_buyer_at' => true,
+        ]);
+
+        $response->assertOk();
+
+        $changeRequest->refresh();
+        $adjustment = OrderAdjustment::where('order_id', $order->id)->firstOrFail();
+        $this->assertSame(OrderChangeRequest::RESOLUTION_TYPE_ADJUSTMENT_APPLIED, $changeRequest->resolution_type);
+        $this->assertSame($farmer->id, $changeRequest->resolved_by);
+        $this->assertSame($adjustment->id, $changeRequest->resolved_order_adjustment_id);
+        $this->assertNotNull($changeRequest->resolved_at);
+    }
+
+    public function test_cancel_auto_resolves_pending_change_request_even_when_request_type_differs(): void
+    {
+        $sale = $this->createSale(['stock_quantity' => 5]);
+        $order = $this->createOrder($sale, 2);
+        $farmer = User::factory()->farmer()->create();
+        // 購入者は「数量変更」を相談したが、農家は全キャンセルで対応するケース
+        $changeRequest = $this->createPendingChangeRequest($order, OrderChangeRequest::REQUEST_TYPE_QUANTITY_REDUCTION, 1);
+
+        $response = $this->actingAs($farmer)->putJson("/api/v1/farmer/orders/{$order->id}/cancel", [
+            'confirmed_with_buyer_at' => true,
+        ]);
+
+        $response->assertOk();
+
+        $changeRequest->refresh();
+        $adjustment = OrderAdjustment::where('order_id', $order->id)->firstOrFail();
+        $this->assertSame(OrderChangeRequest::RESOLUTION_TYPE_ADJUSTMENT_APPLIED, $changeRequest->resolution_type);
+        $this->assertSame($adjustment->id, $changeRequest->resolved_order_adjustment_id);
+    }
+
+    /**
+     * quantity_at_requestは相談時点のスナップショットなので、確定操作で注文の数量が
+     * 変わったあとも書き換わらないことを確認する。
+     */
+    public function test_quantity_at_request_is_preserved_after_resolution(): void
+    {
+        $sale = $this->createSale(['stock_quantity' => 5]);
+        $order = $this->createOrder($sale, 3);
+        $farmer = User::factory()->farmer()->create();
+        $changeRequest = $this->createPendingChangeRequest($order, OrderChangeRequest::REQUEST_TYPE_QUANTITY_REDUCTION, 1);
+
+        $this->actingAs($farmer)->putJson("/api/v1/farmer/orders/{$order->id}/reduce-quantity", [
+            'quantity' => 1,
+            'confirmed_with_buyer_at' => true,
+        ])->assertOk();
+
+        $this->assertSame(3, $changeRequest->fresh()->quantity_at_request);
+    }
+
+    public function test_no_pending_change_request_is_left_untouched_by_unrelated_orders(): void
+    {
+        $sale = $this->createSale(['stock_quantity' => 5]);
+        $order = $this->createOrder($sale, 3);
+        $otherOrder = $this->createOrder($sale, 2);
+        $farmer = User::factory()->farmer()->create();
+        $otherChangeRequest = $this->createPendingChangeRequest($otherOrder);
+
+        $this->actingAs($farmer)->putJson("/api/v1/farmer/orders/{$order->id}/reduce-quantity", [
+            'quantity' => 1,
+            'confirmed_with_buyer_at' => true,
+        ])->assertOk();
+
+        $this->assertNull($otherChangeRequest->fresh()->resolved_at);
     }
 
     // === 数量を減らす ===

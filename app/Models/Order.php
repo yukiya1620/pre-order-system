@@ -90,4 +90,20 @@ class Order extends Model
     {
         return $this->hasMany(OrderAdjustment::class);
     }
+
+    /**
+     * この注文に対する購入者からの数量変更・キャンセル相談(履歴全件)
+     */
+    public function orderChangeRequests(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(OrderChangeRequest::class);
+    }
+
+    /**
+     * 未処理(resolved_at IS NULL)の相談のうち最新の1件。無ければnull。
+     */
+    public function pendingChangeRequest(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(OrderChangeRequest::class)->whereNull('resolved_at')->latestOfMany();
+    }
 }

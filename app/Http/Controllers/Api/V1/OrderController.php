@@ -27,7 +27,7 @@ class OrderController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $query = Auth::user()->orders()->with('orderItems');
+        $query = Auth::user()->orders()->with(['orderItems', 'pendingChangeRequest']);
 
         $year = $request->filled('year') ? (int) $request->input('year') : null;
         $month = $request->filled('month') ? (int) $request->input('month') : null;
@@ -52,7 +52,7 @@ class OrderController extends Controller
             return response()->json(['error' => $error], 403);
         }
 
-        return response()->json(['order' => $order->load('orderItems')]);
+        return response()->json(['order' => $order->load(['orderItems', 'pendingChangeRequest'])]);
     }
 
     /**

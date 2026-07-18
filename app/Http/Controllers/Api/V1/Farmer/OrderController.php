@@ -10,12 +10,14 @@ use App\Http\Requests\Farmer\PlaceProxyOrderRequest;
 use App\Http\Requests\Farmer\ReduceOrderQuantityRequest;
 use App\Models\Notification;
 use App\Models\Order;
+use App\Models\OrderChangeRequest;
 use App\Models\User;
 use App\Services\OrderAdjustmentService;
 use App\Services\OrderPlacementService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class OrderController extends Controller
 {
@@ -34,7 +36,7 @@ class OrderController extends Controller
     public function index(Request $request): JsonResponse
     {
         $orders = Order::query()
-            ->with(['user:id,name,phone_number,address', 'orderItems.productSale.product', 'deliveryConfirmation'])
+            ->with(['user:id,name,phone_number,address', 'orderItems.productSale.product', 'deliveryConfirmation', 'pendingChangeRequest'])
             ->when($request->boolean('active_only'), function ($query) {
                 $query->whereNotIn('status', [Order::STATUS_DELIVERED, Order::STATUS_CANCELLED]);
             })
@@ -46,6 +48,9 @@ class OrderController extends Controller
                 $query->whereHas('orderItems.productSale', function ($query) use ($productId) {
                     $query->where('product_id', $productId);
                 });
+            })
+            ->when($request->boolean('has_pending_change_request'), function ($query) {
+                $query->whereHas('pendingChangeRequest');
             })
             ->orderBy('delivery_date')
             ->paginate(20);
@@ -61,7 +66,7 @@ class OrderController extends Controller
     public function show(Order $order): JsonResponse
     {
         return response()->json([
-            'order' => $order->load(['user:id,name,phone_number', 'orderItems.productSale.product', 'deliveryConfirmation']),
+            'order' => $order->load(['user:id,name,phone_number', 'orderItems.productSale.product', 'deliveryConfirmation', 'pendingChangeRequest']),
         ]);
     }
 
@@ -69,52 +74,74 @@ class OrderController extends Controller
      * 配達完了への更新+支払い状態の記録。
      * すでに配達完了の注文への再リクエストはエラーにせず、支払い情報の修正だけ反映する
      * (べき等にする。誤操作で2回押されても購入者へ重複通知が飛ばないように)。
+     *
+     * 未処理の購入者相談(OrderChangeRequest)がある注文は、先に「数量減少/キャンセルを確定する」
+     * か「変更せず相談を終了する」のいずれかで相談を解消してから配達完了にしてもらう
+     * (相談を残したまま配達完了させない)。OrderChangeRequestService側の相談作成・解消処理も
+     * 必ずOrder行を先にロックするため、同時実行時もOrder行を入口に直列化される。
      */
     public function complete(CompleteOrderRequest $request, Order $order): JsonResponse
     {
-        if ($order->status === Order::STATUS_CANCELLED) {
+        return DB::transaction(function () use ($request, $order) {
+            $lockedOrder = Order::where('id', $order->id)->lockForUpdate()->firstOrFail();
+
+            $hasPendingChangeRequest = OrderChangeRequest::where('order_id', $lockedOrder->id)
+                ->whereNull('resolved_at')
+                ->exists();
+
+            if ($hasPendingChangeRequest) {
+                return response()->json([
+                    'error' => [
+                        'code' => 'ORDER_CHANGE_REQUEST_PENDING',
+                        'message' => '未処理の変更相談があります。先に相談への対応を完了してください。',
+                    ],
+                ], 422);
+            }
+
+            if ($lockedOrder->status === Order::STATUS_CANCELLED) {
+                return response()->json([
+                    'error' => [
+                        'code' => 'ORDER_CANCELLED',
+                        'message' => 'キャンセル済みの注文は配達完了にできません。',
+                    ],
+                ], 422);
+            }
+
+            $wasAlreadyDelivered = $lockedOrder->status === Order::STATUS_DELIVERED;
+
+            $paymentStatus = $request->input('payment_status');
+
+            $lockedOrder->status = Order::STATUS_DELIVERED;
+            $lockedOrder->payment_status = $paymentStatus;
+
+            if ($request->filled('payment_method')) {
+                $lockedOrder->payment_method = $request->input('payment_method');
+            }
+
+            if ($paymentStatus === Order::PAYMENT_STATUS_PAID) {
+                $lockedOrder->paid_at = now();
+            } elseif ($paymentStatus === Order::PAYMENT_STATUS_UNPAID) {
+                $lockedOrder->paid_at = null;
+            }
+            // refundedの場合はpaid_atを現状維持する
+
+            $lockedOrder->save();
+
+            if (! $wasAlreadyDelivered) {
+                Notification::create([
+                    'user_id' => $lockedOrder->user_id,
+                    'type' => '配達完了',
+                    'title' => '配達が完了しました',
+                    'body' => "注文番号 {$lockedOrder->order_number} の配達が完了しました。ご利用ありがとうございました。",
+                    'related_order_id' => $lockedOrder->id,
+                    'is_read' => false,
+                ]);
+            }
+
             return response()->json([
-                'error' => [
-                    'code' => 'ORDER_CANCELLED',
-                    'message' => 'キャンセル済みの注文は配達完了にできません。',
-                ],
-            ], 422);
-        }
-
-        $wasAlreadyDelivered = $order->status === Order::STATUS_DELIVERED;
-
-        $paymentStatus = $request->input('payment_status');
-
-        $order->status = Order::STATUS_DELIVERED;
-        $order->payment_status = $paymentStatus;
-
-        if ($request->filled('payment_method')) {
-            $order->payment_method = $request->input('payment_method');
-        }
-
-        if ($paymentStatus === Order::PAYMENT_STATUS_PAID) {
-            $order->paid_at = now();
-        } elseif ($paymentStatus === Order::PAYMENT_STATUS_UNPAID) {
-            $order->paid_at = null;
-        }
-        // refundedの場合はpaid_atを現状維持する
-
-        $order->save();
-
-        if (! $wasAlreadyDelivered) {
-            Notification::create([
-                'user_id' => $order->user_id,
-                'type' => '配達完了',
-                'title' => '配達が完了しました',
-                'body' => "注文番号 {$order->order_number} の配達が完了しました。ご利用ありがとうございました。",
-                'related_order_id' => $order->id,
-                'is_read' => false,
+                'order' => $lockedOrder->fresh(['user', 'orderItems.productSale.product', 'deliveryConfirmation']),
             ]);
-        }
-
-        return response()->json([
-            'order' => $order->fresh(['user', 'orderItems.productSale.product', 'deliveryConfirmation']),
-        ]);
+        });
     }
 
     /**
