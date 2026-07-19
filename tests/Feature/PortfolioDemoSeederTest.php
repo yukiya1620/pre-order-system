@@ -8,6 +8,7 @@ use App\Models\DeliveryConfirmation;
 use App\Models\Notification;
 use App\Models\Order;
 use App\Models\OrderAdjustment;
+use App\Models\OrderChangeRequest;
 use App\Models\Product;
 use App\Models\User;
 use App\Services\SalesService;
@@ -99,6 +100,7 @@ class PortfolioDemoSeederTest extends TestCase
         $this->assertSame(6, Product::count());
         $this->assertSame(10, Order::count());
         $this->assertSame(5, Announcement::count());
+        $this->assertSame(2, OrderChangeRequest::count());
     }
 
     public function test_seeder_does_not_delete_non_demo_data(): void
@@ -193,6 +195,35 @@ class PortfolioDemoSeederTest extends TestCase
         $this->assertSame(1, OrderAdjustment::whereIn('order_id', $demoOrderIds)->where('change_type', OrderAdjustment::CHANGE_TYPE_CANCELLED)->count());
     }
 
+    public function test_change_requests_include_pending_quantity_reduction_and_cancellation(): void
+    {
+        $this->runSeeder();
+
+        $this->assertSame(1, OrderChangeRequest::where('request_type', OrderChangeRequest::REQUEST_TYPE_QUANTITY_REDUCTION)->count());
+        $this->assertSame(1, OrderChangeRequest::where('request_type', OrderChangeRequest::REQUEST_TYPE_CANCELLATION)->count());
+        $this->assertSame(2, OrderChangeRequest::whereNull('resolved_at')->count());
+        $this->assertSame(0, OrderChangeRequest::whereNotNull('resolved_at')->count());
+    }
+
+    public function test_change_requests_are_linked_to_expected_orders(): void
+    {
+        $this->runSeeder();
+
+        $quantityReductionOrder = Order::where('order_number', 'DEMO-0001')->firstOrFail();
+        $quantityReductionRequest = OrderChangeRequest::where('request_type', OrderChangeRequest::REQUEST_TYPE_QUANTITY_REDUCTION)->firstOrFail();
+
+        $this->assertSame($quantityReductionOrder->id, $quantityReductionRequest->order_id);
+        $this->assertSame(2, $quantityReductionRequest->quantity_at_request);
+        $this->assertSame(1, $quantityReductionRequest->requested_quantity);
+
+        $cancellationOrder = Order::where('order_number', 'DEMO-0010')->firstOrFail();
+        $cancellationRequest = OrderChangeRequest::where('request_type', OrderChangeRequest::REQUEST_TYPE_CANCELLATION)->firstOrFail();
+
+        $this->assertSame($cancellationOrder->id, $cancellationRequest->order_id);
+        $this->assertSame(1, $cancellationRequest->quantity_at_request);
+        $this->assertNull($cancellationRequest->requested_quantity);
+    }
+
     public function test_notifications_match_expected_counts_by_type(): void
     {
         $this->runSeeder();
@@ -200,7 +231,7 @@ class PortfolioDemoSeederTest extends TestCase
         $demoUserIds = User::whereIn('email', self::DEMO_USER_EMAILS)->pluck('id');
         $notifications = Notification::whereIn('user_id', $demoUserIds)->get();
 
-        $this->assertSame(33, $notifications->count());
+        $this->assertSame(35, $notifications->count());
         $this->assertSame(10, $notifications->where('type', '注文受付')->count());
         $this->assertSame(10, $notifications->where('type', '新規注文')->count());
         $this->assertSame(4, $notifications->where('type', '配達確認依頼')->count());
@@ -209,6 +240,8 @@ class PortfolioDemoSeederTest extends TestCase
         $this->assertSame(5, $notifications->where('type', '配達完了')->count());
         $this->assertSame(1, $notifications->where('type', '数量変更確定')->count());
         $this->assertSame(1, $notifications->where('type', '注文キャンセル')->count());
+        $this->assertSame(1, $notifications->where('type', '数量変更相談')->count());
+        $this->assertSame(1, $notifications->where('type', '注文キャンセル相談')->count());
 
         $demoOrderIds = $this->demoOrderIds();
         $this->assertTrue($notifications->pluck('related_order_id')->every(fn ($id) => $demoOrderIds->contains($id)));

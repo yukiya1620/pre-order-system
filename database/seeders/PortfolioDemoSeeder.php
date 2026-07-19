@@ -8,6 +8,7 @@ use App\Models\DeliveryConfirmation;
 use App\Models\Notification;
 use App\Models\Order;
 use App\Models\OrderAdjustment;
+use App\Models\OrderChangeRequest;
 use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\ProductSale;
@@ -177,6 +178,10 @@ class PortfolioDemoSeeder extends Seeder
 
         $demoProductIds = $this->resolveDemoProductIds($demoOrderIds);
 
+        // order_change_requests.resolved_order_adjustment_id が order_adjustments を、
+        // order_id/order_item_id が orders/order_items をそれぞれrestrictOnDeleteで参照しているため、
+        // 両方より先に削除する。
+        OrderChangeRequest::whereIn('order_id', $demoOrderIds)->delete();
         OrderAdjustment::whereIn('order_id', $demoOrderIds)->delete();
         DeliveryConfirmation::whereIn('order_id', $demoOrderIds)->delete();
         // notifications.related_order_id が orders を外部キー参照しているため、
@@ -554,8 +559,70 @@ class PortfolioDemoSeeder extends Seeder
     }
 
     /**
+     * 数量変更相談(未処理)。OrderChangeRequestService::requestQuantityReduction()と同じ記録内容・通知文言。
+     */
+    private function requestQuantityReductionConsultation(Order $order, User $buyer, User $farmer, int $requestedQuantity): void
+    {
+        $item = $order->orderItems()->firstOrFail();
+
+        OrderChangeRequest::create([
+            'order_id' => $order->id,
+            'order_item_id' => $item->id,
+            'request_type' => OrderChangeRequest::REQUEST_TYPE_QUANTITY_REDUCTION,
+            'quantity_at_request' => $item->quantity,
+            'requested_quantity' => $requestedQuantity,
+            'requested_by' => $buyer->id,
+        ]);
+
+        $this->notifyChangeRequestConsultation(
+            $order,
+            $buyer,
+            $farmer,
+            '数量変更相談',
+            "数量を{$item->quantity}から{$requestedQuantity}に変更したいというご相談が届きました。"
+        );
+    }
+
+    /**
+     * キャンセル相談(未処理)。OrderChangeRequestService::requestCancellation()と同じ記録内容・通知文言。
+     */
+    private function requestCancellationConsultation(Order $order, User $buyer, User $farmer): void
+    {
+        $item = $order->orderItems()->firstOrFail();
+
+        OrderChangeRequest::create([
+            'order_id' => $order->id,
+            'order_item_id' => $item->id,
+            'request_type' => OrderChangeRequest::REQUEST_TYPE_CANCELLATION,
+            'quantity_at_request' => $item->quantity,
+            'requested_quantity' => null,
+            'requested_by' => $buyer->id,
+        ]);
+
+        $this->notifyChangeRequestConsultation($order, $buyer, $farmer, '注文キャンセル相談', 'キャンセルのご相談が届きました。');
+    }
+
+    /**
+     * 相談を受けた農家への通知。OrderChangeRequestService::notifyFarmers()と同じ文言
+     * (デモデータでは農家が1件のみのため、通知も1件だけ作成する)。
+     */
+    private function notifyChangeRequestConsultation(Order $order, User $buyer, User $farmer, string $type, string $summary): void
+    {
+        Notification::create([
+            'user_id' => $farmer->id,
+            'type' => $type,
+            'title' => 'ご相談が届きました',
+            'body' => "注文番号 {$order->order_number} について、{$summary}({$buyer->name}様)",
+            'related_order_id' => $order->id,
+            'is_read' => false,
+        ]);
+    }
+
+    /**
      * 受付済のまま配達確認待ちの注文4件(O1,O2,O3,O10)。
      * O1・O10は未回答のまま、O2・O3は回答済みにする。
+     * さらにO1には未処理の数量変更相談、O10には未処理のキャンセル相談を1件ずつ付ける
+     * (F1「要対応(変更相談)」・F3「相談あり」絞り込み・F4「購入者からのご相談」欄の確認用)。
      *
      * @param  Collection<int, User>  $buyers
      * @param  array<string, ProductSale>  $sales
@@ -564,11 +631,12 @@ class PortfolioDemoSeeder extends Seeder
     {
         $today = now()->startOfDay();
 
-        // O1: 受付済、未回答の配達確認
+        // O1: 受付済、未回答の配達確認 + 未処理の数量変更相談(2→1)
         $o1 = $this->createOrder($buyers[0], $sales['朝採れとうもろこし'], 2, 'DEMO-0001', Order::STATUS_RECEIVED, $today->copy()->addDays(3), Order::PAYMENT_STATUS_UNPAID, Order::PAYMENT_METHOD_CASH);
         $this->notifyOrderPlaced($o1, $buyers[0], $farmer);
         $this->createDeliveryConfirmation($o1);
         $this->notifyDeliveryConfirmationRequested($o1, $farmer);
+        $this->requestQuantityReductionConsultation($o1, $buyers[0], $farmer, 1);
 
         // O2: 配達確認済(回答済み・配達可能)
         $o2 = $this->createOrder($buyers[1], $sales['ほくほくじゃがいも'], 3, 'DEMO-0002', Order::STATUS_RECEIVED, $today->copy()->addDays(2), Order::PAYMENT_STATUS_UNPAID, Order::PAYMENT_METHOD_CASH);
@@ -584,11 +652,12 @@ class PortfolioDemoSeeder extends Seeder
         $this->notifyDeliveryConfirmationRequested($o3, $farmer);
         $this->respondDeliveryConfirmation($confirmation3, $o3, '配達日変更', $today->copy()->addDays(6)->toDateString());
 
-        // O10: 受付済、未回答の配達確認
+        // O10: 受付済、未回答の配達確認 + 未処理のキャンセル相談
         $o10 = $this->createOrder($buyers[4], $sales['朝採れとうもろこし'], 1, 'DEMO-0010', Order::STATUS_RECEIVED, $today->copy()->addDays(3), Order::PAYMENT_STATUS_UNPAID, Order::PAYMENT_METHOD_CASH);
         $this->notifyOrderPlaced($o10, $buyers[4], $farmer);
         $this->createDeliveryConfirmation($o10);
         $this->notifyDeliveryConfirmationRequested($o10, $farmer);
+        $this->requestCancellationConsultation($o10, $buyers[4], $farmer);
     }
 
     /**
