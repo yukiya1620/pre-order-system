@@ -77,8 +77,8 @@
                 <p id="detail-change-request-message" class="message message-error" role="alert" aria-live="assertive" hidden></p>
                 <p id="detail-change-request-success" class="message message-success" role="status" aria-live="polite" hidden></p>
 
-                <p>相談種別: <span id="detail-change-request-type"></span></p>
-                <p id="detail-change-request-summary"></p>
+                <p class="order-detail__change-request-highlight">相談種別: <span id="detail-change-request-type"></span></p>
+                <p id="detail-change-request-summary" class="order-detail__change-request-highlight"></p>
                 <p>相談日時: <span id="detail-change-request-created-at"></span></p>
 
                 <div class="field">

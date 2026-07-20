@@ -634,6 +634,14 @@ button[type="submit"]:disabled {
 .order-detail__section p {
     margin: 0 0 8px;
 }
+/* 購入者からのご相談欄:相談種別・相談内容だけ、相談日時等の補足情報より目立たせる
+   (設計書5.1「重要な数字は22〜28px」の基準を流用。折り返しても不自然にならないよう
+   font-sizeのみ上げ、white-space指定はしない) */
+.order-detail__change-request-highlight {
+    font-size: 22px;
+    font-weight: bold;
+    line-height: 1.4;
+}
 .order-detail__items-table {
     width: 100%;
     border-collapse: collapse;
@@ -764,6 +772,21 @@ button[type="submit"]:disabled {
     align-items: center;
     gap: 12px;
     margin-bottom: 20px;
+}
+/* 599px以下は商品カードも1列(全幅)なので、絞り込み枠も全幅のまま。
+   600px/1024pxは.products-list(下記)のグリッド列数が変わる境界と完全に一致させ、
+   カード1列分と同じ計算式(gapは.products-listと同じ20px)で幅をそろえる。
+   .products-page__filterはブロック要素でmargin:autoを指定していないため、
+   max-widthを狭めるだけで自動的にカード1枚目と左端がそろう。 */
+@media (min-width: 600px) {
+    .products-page__filter {
+        max-width: calc((100% - 20px) / 2);
+    }
+}
+@media (min-width: 1024px) {
+    .products-page__filter {
+        max-width: calc((100% - 40px) / 3);
+    }
 }
 .products-page__filter label {
     margin-bottom: 0;
