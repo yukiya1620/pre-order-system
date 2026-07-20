@@ -9,6 +9,7 @@ use App\Models\Notification;
 use App\Models\Order;
 use App\Models\OrderAdjustment;
 use App\Models\OrderChangeRequest;
+use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\ProductSale;
 use App\Models\User;
@@ -180,6 +181,244 @@ class PortfolioDemoSeederTest extends TestCase
         $this->assertDatabaseHas('users', ['id' => $normalBuyer->id]);
         $this->assertDatabaseHas('orders', ['id' => $normalOrder->id]);
         $this->assertSame(1, Category::where('name', '季節商品')->count());
+    }
+
+    /**
+     * デモ環境でデモ注文に対して実際に相談機能等を使うと、
+     * OrderChangeRequestService::notifyFarmers()が登録されている農家全員に通知するため、
+     * デモユーザーではない通常の農家アカウント宛てにも「デモ注文を参照する」通知が作られる。
+     * この状態でSeederを再実行しても、外部キーエラーにならず・デモ注文関連データが
+     * 正しく初期状態へ戻り・通常ユーザーの無関係なデータは保持されることを確認する。
+     */
+    public function test_reseeding_after_real_interaction_with_demo_orders_does_not_fail(): void
+    {
+        // デモユーザーとは別の、通常の農家アカウント(実際の事例と同じくfarmer@example.com)
+        $normalFarmer = User::factory()->farmer()->create(['email' => 'farmer@example.com']);
+
+        $this->runSeeder();
+
+        $demoOrder = Order::where('order_number', 'DEMO-0002')->firstOrFail();
+        $demoOrderItem = $demoOrder->orderItems()->firstOrFail();
+
+        // デモ注文に対して本物の「数量変更を相談する」を実際に使った場合と同じ状況を再現する。
+        // ownershipチェックは購入者(demoOrder->user_id)本人が行った体で、
+        // 通知だけが「登録されている農家全員」(=通常農家も含む)へ届く。
+        $extraChangeRequest = OrderChangeRequest::create([
+            'order_id' => $demoOrder->id,
+            'order_item_id' => $demoOrderItem->id,
+            'request_type' => OrderChangeRequest::REQUEST_TYPE_QUANTITY_REDUCTION,
+            'quantity_at_request' => $demoOrderItem->quantity,
+            'requested_quantity' => 1,
+            'requested_by' => $demoOrder->user_id,
+        ]);
+
+        $strayNotification = Notification::create([
+            'user_id' => $normalFarmer->id,
+            'type' => '数量変更相談',
+            'title' => 'ご相談が届きました',
+            'body' => 'デモ注文についての相談(通常農家宛て)',
+            'related_order_id' => $demoOrder->id,
+            'is_read' => false,
+        ]);
+
+        // 通常農家の、デモ注文とは無関係な通知(削除されてはいけない)
+        $unrelatedNotification = Notification::create([
+            'user_id' => $normalFarmer->id,
+            'type' => '新規注文',
+            'title' => '新しい注文が入りました',
+            'body' => '通常農家自身の注文についての通知',
+            'related_order_id' => null,
+            'is_read' => false,
+        ]);
+
+        // 外部キーエラーにならずに再実行できること
+        $this->runSeeder();
+
+        // デモ注文関連データが、1回だけ実行した場合と同じ初期状態(合計2件)へ戻っていること
+        $this->assertSame(2, OrderChangeRequest::count());
+        $this->assertDatabaseMissing('order_change_requests', ['id' => $extraChangeRequest->id]);
+
+        // 通常農家宛てで、デモ注文を参照していた通知は削除されている
+        $this->assertDatabaseMissing('notifications', ['id' => $strayNotification->id]);
+
+        // 通常農家の、デモ注文と無関係な通知・アカウント自体は保持されている
+        $this->assertDatabaseHas('notifications', ['id' => $unrelatedNotification->id]);
+        $this->assertDatabaseHas('users', ['id' => $normalFarmer->id]);
+
+        // 冪等性: もう一度実行しても件数が変わらない
+        $this->runSeeder();
+        $this->assertSame(2, OrderChangeRequest::count());
+        $this->assertSame(10, Order::where('order_number', 'like', 'DEMO-%')->count());
+    }
+
+    /**
+     * より広い実操作パターンの再現。次の3種類の注文が同時に存在する状態を作る。
+     * ①デモユーザーが本物の注文フロー(通常の注文番号、DEMO-接頭辞ではない)でデモ商品を注文
+     * ②デモユーザーではない通常購入者がデモ商品を注文
+     * ③通常購入者が通常商品を注文した、デモと完全に無関係な注文(対照データ)
+     * ①②それぞれに通常農家宛ての通知・相談・注文調整履歴も作る。
+     * この状態でSeederを再実行しても、外部キーエラーにならず、デモに関連する①②のデータは
+     * すべて初期状態へ戻り、③の無関係なデータだけが保持されることを確認する。
+     */
+    public function test_reseeding_cleans_up_real_orders_referencing_demo_products_regardless_of_buyer(): void
+    {
+        $normalFarmer = User::factory()->farmer()->create(['email' => 'farmer@example.com']);
+        $normalBuyer = User::factory()->create(['email' => 'buyer@example.com']);
+
+        $this->runSeeder();
+
+        $demoCornSale = ProductSale::whereHas('product', function ($query) {
+            $query->where('name', '朝採れとうもろこし');
+        })->firstOrFail();
+        $demoBuyer = User::where('email', 'demo-buyer1@example.com')->firstOrFail();
+
+        // ①デモユーザーが、本物の注文フロー(通常の注文番号)でデモ商品を注文
+        $orderByDemoBuyer = Order::create([
+            'order_number' => now()->format('Ymd').'-9001',
+            'user_id' => $demoBuyer->id,
+            'status' => Order::STATUS_RECEIVED,
+            'total_amount' => $demoCornSale->price,
+            'delivery_address' => $demoBuyer->address,
+            'delivery_date' => now()->addDays(3)->toDateString(),
+        ]);
+        $demoBuyerOrderItem = OrderItem::create([
+            'order_id' => $orderByDemoBuyer->id,
+            'product_sale_id' => $demoCornSale->id,
+            'product_name' => $demoCornSale->product->name,
+            'unit_price' => $demoCornSale->price,
+            'quantity' => 1,
+            'subtotal' => $demoCornSale->price,
+        ]);
+        $notificationForDemoBuyerOrder = Notification::create([
+            'user_id' => $normalFarmer->id,
+            'type' => '新規注文',
+            'title' => '新しい注文が入りました',
+            'body' => 'テスト用(デモユーザーの本物の注文)',
+            'related_order_id' => $orderByDemoBuyer->id,
+            'is_read' => false,
+        ]);
+        $adjustment = OrderAdjustment::create([
+            'order_id' => $orderByDemoBuyer->id,
+            'order_item_id' => $demoBuyerOrderItem->id,
+            'change_type' => OrderAdjustment::CHANGE_TYPE_CANCELLED,
+            'previous_status' => Order::STATUS_RECEIVED,
+            'new_status' => Order::STATUS_CANCELLED,
+            'previous_quantity' => 1,
+            'new_quantity' => 0,
+            'stock_restored' => 1,
+            'confirmed_with_buyer_at' => now(),
+            'changed_by' => $normalFarmer->id,
+        ]);
+
+        // ②デモユーザーではない通常購入者が、デモ商品を注文
+        $orderByNormalBuyer = Order::create([
+            'order_number' => now()->format('Ymd').'-9002',
+            'user_id' => $normalBuyer->id,
+            'status' => Order::STATUS_RECEIVED,
+            'total_amount' => $demoCornSale->price,
+            'delivery_address' => $normalBuyer->address,
+            'delivery_date' => now()->addDays(3)->toDateString(),
+        ]);
+        $normalBuyerOrderItem = OrderItem::create([
+            'order_id' => $orderByNormalBuyer->id,
+            'product_sale_id' => $demoCornSale->id,
+            'product_name' => $demoCornSale->product->name,
+            'unit_price' => $demoCornSale->price,
+            'quantity' => 1,
+            'subtotal' => $demoCornSale->price,
+        ]);
+        $notificationForNormalBuyerOrder = Notification::create([
+            'user_id' => $normalFarmer->id,
+            'type' => '新規注文',
+            'title' => '新しい注文が入りました',
+            'body' => 'テスト用(通常購入者がデモ商品を注文)',
+            'related_order_id' => $orderByNormalBuyer->id,
+            'is_read' => false,
+        ]);
+        $changeRequest = OrderChangeRequest::create([
+            'order_id' => $orderByNormalBuyer->id,
+            'order_item_id' => $normalBuyerOrderItem->id,
+            'request_type' => OrderChangeRequest::REQUEST_TYPE_CANCELLATION,
+            'quantity_at_request' => 1,
+            'requested_quantity' => null,
+            'requested_by' => $normalBuyer->id,
+        ]);
+
+        // ③通常購入者が通常商品を注文した、デモと完全に無関係な注文(対照データ)
+        $normalCategory = Category::create(['name' => '通常カテゴリ', 'display_order' => 99]);
+        $normalProduct = Product::create([
+            'name' => '有機にんじん',
+            'description' => '通常データ',
+            'category_id' => $normalCategory->id,
+            'unit_label' => '袋',
+        ]);
+        $normalSale = ProductSale::create([
+            'product_id' => $normalProduct->id,
+            'price' => 200,
+            'stock_quantity' => 5,
+            'initial_stock' => 5,
+            'sale_start_date' => now()->subDays(5),
+            'sale_end_date' => now()->addDays(30),
+            'delivery_date_from' => now()->addDays(3)->toDateString(),
+            'status' => ProductSale::STATUS_ON_SALE,
+            'is_reservation_open' => true,
+            'delivery_date_type' => ProductSale::DELIVERY_DATE_TYPE_FIXED,
+        ]);
+        $unrelatedOrder = Order::create([
+            'order_number' => now()->format('Ymd').'-9003',
+            'user_id' => $normalBuyer->id,
+            'status' => Order::STATUS_RECEIVED,
+            'total_amount' => 200,
+            'delivery_address' => $normalBuyer->address,
+            'delivery_date' => now()->addDays(3)->toDateString(),
+        ]);
+        OrderItem::create([
+            'order_id' => $unrelatedOrder->id,
+            'product_sale_id' => $normalSale->id,
+            'product_name' => $normalProduct->name,
+            'unit_price' => 200,
+            'quantity' => 1,
+            'subtotal' => 200,
+        ]);
+        $unrelatedNotification = Notification::create([
+            'user_id' => $normalFarmer->id,
+            'type' => '新規注文',
+            'title' => '新しい注文が入りました',
+            'body' => 'デモと無関係な注文についての通知',
+            'related_order_id' => $unrelatedOrder->id,
+            'is_read' => false,
+        ]);
+
+        // 外部キーエラーが発生しないこと
+        $this->runSeeder();
+
+        // デモ関連の注文・通知・相談・変更履歴が初期状態へ戻ること
+        $this->assertDatabaseMissing('orders', ['id' => $orderByDemoBuyer->id]);
+        $this->assertDatabaseMissing('orders', ['id' => $orderByNormalBuyer->id]);
+        $this->assertDatabaseMissing('order_items', ['id' => $demoBuyerOrderItem->id]);
+        $this->assertDatabaseMissing('order_items', ['id' => $normalBuyerOrderItem->id]);
+        $this->assertDatabaseMissing('notifications', ['id' => $notificationForDemoBuyerOrder->id]);
+        $this->assertDatabaseMissing('notifications', ['id' => $notificationForNormalBuyerOrder->id]);
+        $this->assertDatabaseMissing('order_change_requests', ['id' => $changeRequest->id]);
+        $this->assertDatabaseMissing('order_adjustments', ['id' => $adjustment->id]);
+        $this->assertSame(2, OrderChangeRequest::count());
+        $this->assertSame(2, OrderAdjustment::count());
+        $this->assertSame(10, Order::where('order_number', 'like', 'DEMO-%')->count());
+
+        // 通常ユーザー・通常商品・それらに関する無関係な注文や通知は保持されること
+        $this->assertDatabaseHas('users', ['id' => $normalFarmer->id]);
+        $this->assertDatabaseHas('users', ['id' => $normalBuyer->id]);
+        $this->assertDatabaseHas('products', ['id' => $normalProduct->id]);
+        $this->assertDatabaseHas('product_sales', ['id' => $normalSale->id]);
+        $this->assertDatabaseHas('orders', ['id' => $unrelatedOrder->id]);
+        $this->assertDatabaseHas('notifications', ['id' => $unrelatedNotification->id]);
+
+        // さらに再実行しても件数が変化しないこと(冪等性)
+        $this->runSeeder();
+        $this->assertSame(2, OrderChangeRequest::count());
+        $this->assertSame(2, OrderAdjustment::count());
+        $this->assertSame(10, Order::where('order_number', 'like', 'DEMO-%')->count());
+        $this->assertDatabaseHas('orders', ['id' => $unrelatedOrder->id]);
     }
 
     public function test_sales_summary_matches_expected_values(): void

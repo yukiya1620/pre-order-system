@@ -172,9 +172,7 @@ class PortfolioDemoSeeder extends Seeder
             );
         }
 
-        $demoOrderIds = Order::where('order_number', 'like', 'DEMO-%')
-            ->whereIn('user_id', $demoUserIds)
-            ->pluck('id');
+        $demoOrderIds = $this->resolveDemoOrderIds($demoUserIds);
 
         $demoProductIds = $this->resolveDemoProductIds($demoOrderIds);
 
@@ -186,13 +184,54 @@ class PortfolioDemoSeeder extends Seeder
         DeliveryConfirmation::whereIn('order_id', $demoOrderIds)->delete();
         // notifications.related_order_id が orders を外部キー参照しているため、
         // 注文本体を消す前に紐づく通知を先に削除しておく必要がある。
-        Notification::whereIn('user_id', $demoUserIds)->delete();
+        // 宛先(user_id)がデモユーザーの通知に加え、デモ注文を参照している通知(related_order_id)も
+        // 削除対象にする。OrderChangeRequestService::notifyFarmers()は登録されている農家全員に
+        // 通知するため、デモ環境でデモ注文に対して実際に相談機能等を使うと、デモユーザーではない
+        // 通常の農家アカウント宛てにも「デモ注文を参照する」通知が作られる。これをuser_idだけで
+        // 判定すると削除されずに残り、次回のSeeder実行時にordersの外部キー制約で削除に失敗する。
+        // 一方で、通常ユーザー宛ての、デモ注文と無関係な通知(related_order_idが別の注文またはNULL)
+        // には触れない。
+        Notification::where(function ($query) use ($demoUserIds, $demoOrderIds) {
+            $query->whereIn('user_id', $demoUserIds)
+                ->orWhereIn('related_order_id', $demoOrderIds);
+        })->delete();
         OrderItem::whereIn('order_id', $demoOrderIds)->delete();
         Order::whereIn('id', $demoOrderIds)->delete();
         Announcement::whereIn('title', self::DEMO_ANNOUNCEMENT_TITLES)->delete();
         ProductSale::whereIn('product_id', $demoProductIds)->delete();
         Product::whereIn('id', $demoProductIds)->delete();
         User::whereIn('id', $demoUserIds)->delete();
+    }
+
+    /**
+     * 削除対象となる注文IDを、以下のいずれかに該当する注文としてすべて収集する(OR条件)。
+     *
+     * - order_numberが既存のデモ注文形式(DEMO-%)である(過去データとの互換性のため残す)
+     * - 注文者(user_id)がデモユーザーである(デモユーザーが本物の注文フロー(通常の注文番号)で
+     *   確定した注文も対象にする。例:デモ購入者が実際にB4〜B6で注文を確定した場合)
+     * - 注文明細(order_items)が、デモ商品(商品名で特定)のproduct_salesを参照している
+     *   (通常ユーザーがデモ商品を実際に注文した場合も対象にする)
+     *
+     * order_numberだけを唯一の判定条件にはしない。通常ユーザーが通常商品を注文したデータは、
+     * 上記いずれにも該当しないため対象にならない。
+     *
+     * @param  Collection<int, int>  $demoUserIds
+     * @return Collection<int, int>
+     */
+    private function resolveDemoOrderIds(Collection $demoUserIds): Collection
+    {
+        $demoProductIdsByName = Product::whereIn('name', self::DEMO_PRODUCT_NAMES)->pluck('id');
+        $demoProductSaleIdsByName = ProductSale::whereIn('product_id', $demoProductIdsByName)->pluck('id');
+
+        $orderIdsByNumber = Order::where('order_number', 'like', 'DEMO-%')->pluck('id');
+        $orderIdsByBuyer = Order::whereIn('user_id', $demoUserIds)->pluck('id');
+        $orderIdsByItem = OrderItem::whereIn('product_sale_id', $demoProductSaleIdsByName)->pluck('order_id');
+
+        return $orderIdsByNumber
+            ->merge($orderIdsByBuyer)
+            ->merge($orderIdsByItem)
+            ->unique()
+            ->values();
     }
 
     /**
