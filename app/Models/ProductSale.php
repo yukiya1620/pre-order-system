@@ -40,15 +40,19 @@ class ProductSale extends Model
 
     // 購入者向けAPI(GET /products, GET /products/{id})が配達予定日を必ず返せるよう、
     // JSONに自動で含める。注文確定時と全く同じ resolveDeliveryDate() を使うため、計算ロジックの重複は無い。
-    protected $appends = ['delivery_date'];
+    protected $appends = ['delivery_date', 'requires_delivery_date_selection'];
 
     protected function casts(): array
     {
         return [
-            'sale_start_date' => 'date',
-            'sale_end_date' => 'date',
-            'delivery_date_from' => 'date',
-            'delivery_date_to' => 'date',
+            // 'date'のままだとtoJSON()でUTC変換され、日本時間の日付と1日ずれて見えることがある
+            // (Order.delivery_dateで実際に踏んだ問題と同じ)。B4の配達期間表示・日付選択の
+            // 最小/最大値、および注文受付期間(sale_start_date/sale_end_date)の表示にそのまま
+            // JSへ渡すため、product_salesの日付カラムはすべて'date:Y-m-d'に統一する。
+            'sale_start_date' => 'date:Y-m-d',
+            'sale_end_date' => 'date:Y-m-d',
+            'delivery_date_from' => 'date:Y-m-d',
+            'delivery_date_to' => 'date:Y-m-d',
             'is_reservation_open' => 'boolean',
             'requires_delivery_confirmation' => 'boolean',
         ];
@@ -126,5 +130,32 @@ class ProductSale extends Model
     public function getDeliveryDateAttribute(): string
     {
         return $this->resolveDeliveryDate()->toDateString();
+    }
+
+    /**
+     * 配達予定日を購入者に選ばせる必要がある商品かどうか。
+     * 固定配達日タイプ(fixed)で、delivery_date_toがdelivery_date_fromより後の日付に
+     * 設定されている場合のみtrue。同日(単日配達)・NULL・自動計算タイプ(auto)はfalse
+     * (これらは今まで通りresolveDeliveryDate()による自動決定のまま)。
+     */
+    public function requiresDeliveryDateSelection(): bool
+    {
+        return $this->delivery_date_type === self::DELIVERY_DATE_TYPE_FIXED
+            && $this->delivery_date_to !== null
+            && $this->delivery_date_to->gt($this->delivery_date_from);
+    }
+
+    public function getRequiresDeliveryDateSelectionAttribute(): bool
+    {
+        return $this->requiresDeliveryDateSelection();
+    }
+
+    /**
+     * 指定した日付が配達予定期間(delivery_date_from〜delivery_date_to、両端を含む)内かどうか。
+     * requiresDeliveryDateSelection()がtrueの商品でのみ意味を持つ判定。
+     */
+    public function isDeliveryDateWithinRange(\Illuminate\Support\Carbon $date): bool
+    {
+        return $date->between($this->delivery_date_from, $this->delivery_date_to);
     }
 }

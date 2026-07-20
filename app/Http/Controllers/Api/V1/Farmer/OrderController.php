@@ -225,17 +225,21 @@ class OrderController extends Controller
         }
 
         try {
+            // 電話注文の代理入力(F10)には配達予定日を選ぶ画面が無いため、常にnull(=自動決定)を渡す。
+            // requireDeliveryDateSelection: falseにより、配達期間のある商品でも従来通り
+            // delivery_date_from(期間の開始日)へ自動的にフォールバックする(必須エラーにしない)。
             $order = $this->orderPlacementService->place(
                 $buyer,
                 (int) $request->input('product_sale_id'),
                 (int) $request->input('quantity'),
                 $request->input('delivery_time_slot'),
-                [
+                orderAttributes: [
                     'is_proxy_order' => true,
                     'proxy_note' => $request->input('proxy_note'),
                     'payment_method' => $request->input('payment_method', Order::PAYMENT_METHOD_CASH),
                     'payment_status' => $request->input('payment_status', Order::PAYMENT_STATUS_UNPAID),
-                ]
+                ],
+                requireDeliveryDateSelection: false,
             );
         } catch (OrderPlacementException $exception) {
             return response()->json([

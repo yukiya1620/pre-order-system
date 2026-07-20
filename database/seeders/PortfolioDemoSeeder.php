@@ -286,6 +286,10 @@ class PortfolioDemoSeeder extends Seeder
                 'description' => '朝一番に収穫した、甘みたっぷりの黄金色のとうもろこし。茹でても焼いても絶品です。',
                 'price' => 400, 'stock_quantity' => 15, 'initial_stock' => 19,
                 'status' => ProductSale::STATUS_ON_SALE, 'delivery_date_type' => ProductSale::DELIVERY_DATE_TYPE_FIXED,
+                // この商品だけ配達予定期間(delivery_date_from〜+2日=3日間)を持たせ、
+                // 配達予定日の選択機能(3.5節)をポートフォリオ上で確認できるようにする。
+                // 他の商品はdelivery_date_toを設定しないため、従来通り単日配達のまま。
+                'delivery_date_to_offset_days' => 5,
             ],
             '完熟ミニトマト' => [
                 'category' => '季節商品', 'unit_label' => 'パック',
@@ -332,6 +336,7 @@ class PortfolioDemoSeeder extends Seeder
 
             $isEnded = $definition['status'] === ProductSale::STATUS_ENDED;
             $isAuto = $definition['delivery_date_type'] === ProductSale::DELIVERY_DATE_TYPE_AUTO;
+            $deliveryDateToOffsetDays = $definition['delivery_date_to_offset_days'] ?? null;
 
             $sales[$name] = ProductSale::create([
                 'product_id' => $product->id,
@@ -341,6 +346,9 @@ class PortfolioDemoSeeder extends Seeder
                 'sale_start_date' => $today->copy()->subDays(30),
                 'sale_end_date' => $isEnded ? $today->copy()->subDays(10) : $today->copy()->addDays(60),
                 'delivery_date_from' => $today->copy()->addDays(3)->toDateString(),
+                'delivery_date_to' => $deliveryDateToOffsetDays !== null
+                    ? $today->copy()->addDays($deliveryDateToOffsetDays)->toDateString()
+                    : null,
                 'status' => $definition['status'],
                 'is_reservation_open' => ! $isEnded,
                 'delivery_date_type' => $definition['delivery_date_type'],

@@ -129,7 +129,13 @@
 
         var deliveryEl = document.createElement('p');
         deliveryEl.className = 'product-card__delivery';
-        deliveryEl.textContent = '🚚 配達予定 ' + formatDate(sale.delivery_date);
+        // 配達予定期間から選べる商品(B4で選択欄が出る商品)は、開始日だけでなく
+        // 期間全体を示す(B4の表示と矛盾しないようにする)。単日・当日/翌日配達は従来通り。
+        if (sale.requires_delivery_date_selection) {
+            deliveryEl.textContent = '🚚 配達予定 ' + formatDate(sale.delivery_date_from) + '〜' + formatDate(sale.delivery_date_to);
+        } else {
+            deliveryEl.textContent = '🚚 配達予定 ' + formatDate(sale.delivery_date);
+        }
         infoEl.appendChild(deliveryEl);
 
         var link = document.createElement('a');

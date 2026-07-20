@@ -140,4 +140,16 @@ class OrderConfirmPageTest extends TestCase
         $response->assertSee('id="confirm-delivery-date"', false);
         $response->assertSee('id="order-confirm-submit-button"', false);
     }
+
+    /**
+     * B4で選んだ配達予定日(delivery_date)が、preview/storeへ送るリクエストへ
+     * クエリ文字列経由で引き継がれることを確認する(APIパス同様、JS内の組み立てなので
+     * F9で確立したfile_get_contents + assertStringContainsStringのパターンを使う)。
+     */
+    public function test_order_confirm_js_carries_delivery_date_from_query_string(): void
+    {
+        $js = file_get_contents(public_path('js/order-confirm.js'));
+
+        $this->assertStringContainsString("delivery_date: params.get('delivery_date') || null", $js);
+    }
 }

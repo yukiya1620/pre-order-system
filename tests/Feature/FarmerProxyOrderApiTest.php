@@ -182,6 +182,26 @@ class FarmerProxyOrderApiTest extends TestCase
         $response->assertJsonPath('order.delivery_date', $deliveryDate);
     }
 
+    /**
+     * 電話注文の代理入力(F10)には配達予定日を選ぶ画面が無い。配達予定期間のある商品でも
+     * delivery_dateを送らずに、従来通りdelivery_date_fromへ自動的にフォールバックすることを確認する
+     * (購入者自身の注文(B4/B5)とは異なり、必須エラーにはならない)。
+     */
+    public function test_ranged_product_falls_back_to_delivery_date_from_without_selection(): void
+    {
+        $farmer = User::factory()->farmer()->create();
+        $from = now()->addDays(5)->toDateString();
+        $sale = $this->createFixedSale([
+            'delivery_date_from' => $from,
+            'delivery_date_to' => now()->addDays(7)->toDateString(),
+        ]);
+
+        $response = $this->actingAs($farmer)->postJson('/api/v1/farmer/orders', $this->baseProxyOrderPayload($sale));
+
+        $response->assertStatus(201);
+        $response->assertJsonPath('order.delivery_date', $from);
+    }
+
     public function test_auto_type_delivery_date_is_pushed_back_one_day_after_deadline(): void
     {
         Carbon::setTestNow(Carbon::parse('2026-07-15 20:00:00', 'Asia/Tokyo'));

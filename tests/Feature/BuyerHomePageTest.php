@@ -120,4 +120,16 @@ class BuyerHomePageTest extends TestCase
         $response->assertSee('id="products-list"', false);
         $response->assertSee('id="products-empty"', false);
     }
+
+    /**
+     * 商品カードの配達予定表示はJS内で組み立てるため、F9で確立したパターン
+     * (file_get_contents + assertStringContainsString)で確認する。
+     */
+    public function test_buyer_home_js_shows_delivery_date_range_for_ranged_products(): void
+    {
+        $js = file_get_contents(public_path('js/buyer-home.js'));
+
+        $this->assertStringContainsString('requires_delivery_date_selection', $js);
+        $this->assertStringContainsString("formatDate(sale.delivery_date_from) + '〜' + formatDate(sale.delivery_date_to)", $js);
+    }
 }

@@ -146,4 +146,52 @@ class ProductDetailPageTest extends TestCase
         $response->assertOk();
         $response->assertSee('data-order-confirm-base-url="'.url('/orders/confirm').'"', false);
     }
+
+    public function test_page_has_delivery_date_selection_container(): void
+    {
+        $sale = $this->createSale();
+
+        $response = $this->get('/products/'.$sale->id);
+
+        $response->assertOk();
+        $response->assertSee('id="product-detail-delivery-date-field"', false);
+        $response->assertSee('id="product-detail-delivery-date-select"', false);
+    }
+
+    /**
+     * 配達予定日の選択肢生成・URLへの引き継ぎはJS内で行うため、F9で確立したパターン
+     * (file_get_contents + assertStringContainsString)で確認する。
+     */
+    public function test_product_detail_js_handles_delivery_date_selection(): void
+    {
+        $js = file_get_contents(public_path('js/product-detail.js'));
+
+        $this->assertStringContainsString('requires_delivery_date_selection', $js);
+        $this->assertStringContainsString('renderDeliveryDateOptions', $js);
+        $this->assertStringContainsString("params.set('delivery_date', deliveryDateSelect.value)", $js);
+    }
+
+    /**
+     * 配達予定日の選択欄は、期間の最初の日を勝手に選ばず、必ず空の選択肢
+     * (value="")から始まる。未選択のまま注文へ進もうとした場合はブロックされる。
+     */
+    public function test_product_detail_js_defaults_delivery_date_to_blank_placeholder(): void
+    {
+        $js = file_get_contents(public_path('js/product-detail.js'));
+
+        $this->assertStringContainsString("placeholder.value = ''", $js);
+        $this->assertStringContainsString('配達予定日を選択してください', $js);
+        $this->assertStringContainsString("deliveryDateSelect.value = ''", $js);
+        $this->assertStringContainsString('sale.requires_delivery_date_selection && !deliveryDateSelect.value', $js);
+    }
+
+    public function test_page_delivery_date_select_has_required_attribute(): void
+    {
+        $sale = $this->createSale();
+
+        $response = $this->get('/products/'.$sale->id);
+
+        $response->assertOk();
+        $response->assertSee('id="product-detail-delivery-date-select" required', false);
+    }
 }

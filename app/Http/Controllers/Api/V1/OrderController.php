@@ -91,12 +91,29 @@ class OrderController extends Controller
             return response()->json(['error' => $error], 422);
         }
 
+        try {
+            // 前回注文時の配達予定日を候補として再検証する。配達期間が変わっていなければ
+            // そのまま通り、万一変わっていて期間外になっていれば422で拒否する。
+            $deliveryDate = $this->orderPlacementService->resolveOrderDeliveryDate(
+                $productSale,
+                $order->delivery_date->format('Y-m-d')
+            );
+        } catch (OrderPlacementException $exception) {
+            return response()->json([
+                'error' => [
+                    'code' => $exception->errorCode(),
+                    'message' => $exception->getMessage(),
+                ],
+            ], 422);
+        }
+
         return response()->json([
             'order_preview' => $this->buildPreview(
                 $productSale,
                 $orderItem->quantity,
                 $order->delivery_time_slot,
-                Auth::user()
+                Auth::user(),
+                $deliveryDate
             ),
             // B7(注文履歴)・注文詳細画面が /orders/confirm への遷移URLを組み立てるために使う。
             // order_previewの中の同名項目に依存させず、明示的な契約として別キーで返す。
@@ -104,6 +121,7 @@ class OrderController extends Controller
                 'product_sale_id' => $productSale->id,
                 'quantity' => $orderItem->quantity,
                 'delivery_time_slot' => $order->delivery_time_slot,
+                'delivery_date' => $deliveryDate->toDateString(),
             ],
         ]);
     }
@@ -120,12 +138,24 @@ class OrderController extends Controller
             return response()->json(['error' => $error], 422);
         }
 
+        try {
+            $deliveryDate = $this->orderPlacementService->resolveOrderDeliveryDate($productSale, $request->input('delivery_date'));
+        } catch (OrderPlacementException $exception) {
+            return response()->json([
+                'error' => [
+                    'code' => $exception->errorCode(),
+                    'message' => $exception->getMessage(),
+                ],
+            ], 422);
+        }
+
         return response()->json([
             'order_preview' => $this->buildPreview(
                 $productSale,
                 $quantity,
                 $request->input('delivery_time_slot'),
-                Auth::user()
+                Auth::user(),
+                $deliveryDate
             ),
         ]);
     }
@@ -142,6 +172,7 @@ class OrderController extends Controller
                 (int) $request->input('product_sale_id'),
                 (int) $request->input('quantity'),
                 $request->input('delivery_time_slot'),
+                $request->input('delivery_date'),
             );
         } catch (OrderPlacementException $exception) {
             return response()->json([
@@ -177,7 +208,7 @@ class OrderController extends Controller
      *
      * @return array<string, mixed>
      */
-    private function buildPreview(ProductSale $productSale, int $quantity, ?string $deliveryTimeSlot, User $user): array
+    private function buildPreview(ProductSale $productSale, int $quantity, ?string $deliveryTimeSlot, User $user, \Illuminate\Support\Carbon $deliveryDate): array
     {
         $subtotal = $productSale->price * $quantity;
 
@@ -189,7 +220,7 @@ class OrderController extends Controller
             'subtotal' => $subtotal,
             'total_amount' => $subtotal,
             'delivery_address' => $user->address,
-            'delivery_date' => $productSale->delivery_date,
+            'delivery_date' => $deliveryDate->toDateString(),
             'delivery_time_slot' => $deliveryTimeSlot,
             'delivery_note' => $productSale->delivery_note,
         ];

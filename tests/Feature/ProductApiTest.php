@@ -132,6 +132,78 @@ class ProductApiTest extends TestCase
         $response->assertJsonPath('products.0.delivery_date', $deliveryDate);
     }
 
+    public function test_ranged_fixed_type_exposes_selectable_delivery_date_range(): void
+    {
+        $from = now()->addDays(5)->toDateString();
+        $to = now()->addDays(7)->toDateString();
+        $sale = $this->createSale($this->createProduct(), [
+            'delivery_date_from' => $from,
+            'delivery_date_to' => $to,
+        ]);
+
+        $response = $this->getJson('/api/v1/products/'.$sale->id);
+
+        $response->assertOk();
+        $response->assertJsonPath('product.requires_delivery_date_selection', true);
+        $response->assertJsonPath('product.delivery_date_from', $from);
+        $response->assertJsonPath('product.delivery_date_to', $to);
+    }
+
+    public function test_index_includes_delivery_date_range_fields_for_ranged_product(): void
+    {
+        $from = now()->addDays(5)->toDateString();
+        $to = now()->addDays(7)->toDateString();
+        $sale = $this->createSale($this->createProduct(), [
+            'delivery_date_from' => $from,
+            'delivery_date_to' => $to,
+        ]);
+
+        $response = $this->getJson('/api/v1/products');
+
+        $response->assertOk();
+        $response->assertJsonPath('products.0.id', $sale->id);
+        $response->assertJsonPath('products.0.requires_delivery_date_selection', true);
+        $response->assertJsonPath('products.0.delivery_date_from', $from);
+        $response->assertJsonPath('products.0.delivery_date_to', $to);
+    }
+
+    public function test_single_day_fixed_type_does_not_require_delivery_date_selection(): void
+    {
+        $date = now()->addDays(3)->toDateString();
+        $sale = $this->createSale($this->createProduct(), [
+            'delivery_date_from' => $date,
+            'delivery_date_to' => $date,
+        ]);
+
+        $response = $this->getJson('/api/v1/products/'.$sale->id);
+
+        $response->assertOk();
+        $response->assertJsonPath('product.requires_delivery_date_selection', false);
+    }
+
+    public function test_sale_without_delivery_date_to_does_not_require_delivery_date_selection(): void
+    {
+        $sale = $this->createSale($this->createProduct(), ['delivery_date_to' => null]);
+
+        $response = $this->getJson('/api/v1/products/'.$sale->id);
+
+        $response->assertOk();
+        $response->assertJsonPath('product.requires_delivery_date_selection', false);
+    }
+
+    public function test_auto_type_does_not_require_delivery_date_selection_even_with_range_like_fields(): void
+    {
+        $sale = $this->createSale($this->createProduct(), [
+            'delivery_date_type' => ProductSale::DELIVERY_DATE_TYPE_AUTO,
+            'earliest_delivery_days' => 0,
+        ]);
+
+        $response = $this->getJson('/api/v1/products/'.$sale->id);
+
+        $response->assertOk();
+        $response->assertJsonPath('product.requires_delivery_date_selection', false);
+    }
+
     public function test_auto_type_delivery_date_is_pushed_back_one_day_after_deadline(): void
     {
         Carbon::setTestNow(Carbon::parse('2026-07-15 20:00:00', 'Asia/Tokyo'));

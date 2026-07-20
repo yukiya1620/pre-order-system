@@ -22,7 +22,14 @@
             <p id="product-detail-price" class="product-detail__price"></p>
             <span id="product-detail-status-badge" class="product-status-badge"></span>
             <p id="product-detail-stock" class="product-detail__stock"></p>
+            <p class="product-detail__order-period">📅 注文受付期間：<span id="product-detail-order-period"></span></p>
             <p class="product-detail__delivery">🚚 配達予定 <span id="product-detail-delivery-date"></span></p>
+
+            <div class="field" id="product-detail-delivery-date-field" hidden>
+                <label for="product-detail-delivery-date-select">配達予定日を選ぶ</label>
+                <select id="product-detail-delivery-date-select" required></select>
+            </div>
+
             <p id="product-detail-delivery-note" class="product-detail__delivery-note"></p>
             <p id="product-detail-description" class="product-detail__description"></p>
 

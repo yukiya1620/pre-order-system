@@ -154,6 +154,9 @@
             if (data.reorder_params.delivery_time_slot) {
                 params.set('delivery_time_slot', data.reorder_params.delivery_time_slot);
             }
+            if (data.reorder_params.delivery_date) {
+                params.set('delivery_date', data.reorder_params.delivery_date);
+            }
             window.location.href = orderConfirmBaseUrl + '?' + params.toString();
         }).catch(function () {
             showCardMessage(card, '確認に失敗しました。時間をおいてもう一度お試しください。');

@@ -24,11 +24,15 @@ class OrderPlacementService
      * 設計書3.4の手順(行ロック→在庫確認→減算→注文作成→通知作成)通りに、
      * 1つのDBトランザクションの中で注文を確定する。
      *
+     * @param  string|null  $deliveryDate  配達予定期間から購入者が選んだ日付(YYYY-MM-DD)。選択不要な商品では無視される
      * @param  array<string, mixed>  $orderAttributes  is_proxy_order/proxy_note/payment_method/payment_status など、呼び出し元ごとに異なる項目の上書き
+     * @param  bool  $requireDeliveryDateSelection  選択必須の商品で$deliveryDateが未指定のときにエラーにするか。
+     *                                               電話注文の代理入力(F10)は日付選択UIを持たないため、falseを渡して
+     *                                               従来通り自動決定(delivery_date_from)にフォールバックさせる
      */
-    public function place(User $buyer, int $productSaleId, int $quantity, ?string $deliveryTimeSlot, array $orderAttributes = []): Order
+    public function place(User $buyer, int $productSaleId, int $quantity, ?string $deliveryTimeSlot, ?string $deliveryDate = null, array $orderAttributes = [], bool $requireDeliveryDateSelection = true): Order
     {
-        return DB::transaction(function () use ($buyer, $productSaleId, $quantity, $deliveryTimeSlot, $orderAttributes) {
+        return DB::transaction(function () use ($buyer, $productSaleId, $quantity, $deliveryTimeSlot, $deliveryDate, $orderAttributes, $requireDeliveryDateSelection) {
             // lockForUpdate()で対象行に「行ロック」をかける。
             // このロックが外れるまで、他のリクエストは同じ行の続きの処理を待たされるため、
             // 同時に注文しても在庫がマイナスになることはない。
@@ -40,6 +44,10 @@ class OrderPlacementService
             if ($error = $this->availabilityError($productSale, $quantity)) {
                 throw new OrderPlacementException($error['message'], $error['code']);
             }
+
+            // ロック済みの最新データに対して検証するため、画面の値を改ざんされても
+            // 期間外の日付・不正な形式では注文できない(在庫チェックと同じ考え方)。
+            $resolvedDeliveryDate = $this->resolveOrderDeliveryDate($productSale, $deliveryDate, $requireDeliveryDateSelection);
 
             $productSale->decrement('stock_quantity', $quantity);
 
@@ -55,7 +63,7 @@ class OrderPlacementService
                 'status' => Order::STATUS_RECEIVED,
                 'total_amount' => $subtotal,
                 'delivery_address' => $buyer->address,
-                'delivery_date' => $productSale->resolveDeliveryDate(),
+                'delivery_date' => $resolvedDeliveryDate,
                 'delivery_time_slot' => $deliveryTimeSlot,
                 'is_proxy_order' => false,
                 'payment_method' => Order::PAYMENT_METHOD_CASH,
@@ -110,6 +118,53 @@ class OrderPlacementService
         }
 
         return null;
+    }
+
+    /**
+     * 実際に注文へ設定する配達予定日を決定する(preview・store共通の唯一の判定箇所)。
+     * 選択不要な商品(単日配達・当日/翌日配達)では、渡された$deliveryDateを一切見ずに
+     * 常にresolveDeliveryDate()を返す(=既存の挙動に一切影響を与えない)。
+     * 選択必須な商品では、形式(YYYY-MM-DD)・必須・期間内であることをすべてここで検証する。
+     *
+     * @throws OrderPlacementException
+     */
+    public function resolveOrderDeliveryDate(ProductSale $productSale, ?string $deliveryDate, bool $requireSelection = true): \Illuminate\Support\Carbon
+    {
+        if (! $productSale->requiresDeliveryDateSelection()) {
+            return $productSale->resolveDeliveryDate();
+        }
+
+        if (blank($deliveryDate)) {
+            if (! $requireSelection) {
+                return $productSale->resolveDeliveryDate();
+            }
+
+            throw new OrderPlacementException('配達予定日を選択してください。', 'DELIVERY_DATE_REQUIRED');
+        }
+
+        // date_format:Y-m-dと同じ考え方で、桁数まで厳密に一致する形式だけを受け付ける
+        // (createFromFormatは"2026-2-3"のような桁不足も緩く解釈してしまうため、先に正規表現で弾く)。
+        if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $deliveryDate)) {
+            throw new OrderPlacementException('配達予定日の形式が正しくありません。', 'INVALID_DELIVERY_DATE');
+        }
+
+        try {
+            $parsedDate = \Illuminate\Support\Carbon::createFromFormat('Y-m-d', $deliveryDate)->startOfDay();
+        } catch (\Throwable $exception) {
+            throw new OrderPlacementException('配達予定日の形式が正しくありません。', 'INVALID_DELIVERY_DATE');
+        }
+
+        // createFromFormatは"2026-02-30"のような暦上存在しない日付を3月2日などへ繰り上げて
+        // 解釈してしまう(例外を投げない)ため、フォーマットし直して元の文字列と一致するかで弾く。
+        if ($parsedDate->format('Y-m-d') !== $deliveryDate) {
+            throw new OrderPlacementException('配達予定日の形式が正しくありません。', 'INVALID_DELIVERY_DATE');
+        }
+
+        if (! $productSale->isDeliveryDateWithinRange($parsedDate)) {
+            throw new OrderPlacementException('配達予定日は配達予定期間内から選択してください。', 'DELIVERY_DATE_OUT_OF_RANGE');
+        }
+
+        return $parsedDate;
     }
 
     /**

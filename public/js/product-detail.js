@@ -11,6 +11,8 @@
     var contentEl = document.getElementById('product-detail-content');
     var quantityInput = document.getElementById('product-detail-quantity');
     var timeSlotSelect = document.getElementById('product-detail-time-slot');
+    var deliveryDateFieldEl = document.getElementById('product-detail-delivery-date-field');
+    var deliveryDateSelect = document.getElementById('product-detail-delivery-date-select');
 
     function showMessage(text) {
         messageEl.textContent = text;
@@ -20,6 +22,55 @@
     function formatDate(dateString) {
         var parts = dateString.split('-');
         return Number(parts[1]) + '月' + Number(parts[2]) + '日';
+    }
+
+    function pad2(n) {
+        return n < 10 ? '0' + n : String(n);
+    }
+
+    /**
+     * "YYYY-MM-DD"を年月日に分解して、その年月日だけを見たローカルのDateを作る。
+     * new Date("YYYY-MM-DD")は仕様上UTC 0時として解釈されるため、日本時間では
+     * 前日にずれて見えることがある(既知の罠)。1日ずつ数え上げるためだけに使うので、
+     * タイムゾーンに影響されない年月日ベースで組み立てる。
+     */
+    function dateFromParts(dateString) {
+        var parts = dateString.split('-').map(Number);
+        return new Date(parts[0], parts[1] - 1, parts[2]);
+    }
+
+    function toDateString(date) {
+        return date.getFullYear() + '-' + pad2(date.getMonth() + 1) + '-' + pad2(date.getDate());
+    }
+
+    /**
+     * 配達予定期間(from〜to、両端を含む)の全日付を<option>として並べる。
+     * 最初にvalue=""の空の選択肢(「配達予定日を選択してください」)を置き、
+     * 購入者が自分で選ぶまでは未選択の状態にする(期間の最初の日を勝手に選んでおくと、
+     * 選ばずに進めてしまう・意図しない日で注文してしまう恐れがあるため)。
+     */
+    function renderDeliveryDateOptions(fromStr, toStr) {
+        deliveryDateSelect.innerHTML = '';
+
+        var placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = '配達予定日を選択してください';
+        deliveryDateSelect.appendChild(placeholder);
+
+        var current = dateFromParts(fromStr);
+        var end = dateFromParts(toStr);
+
+        while (current <= end) {
+            var value = toDateString(current);
+            var option = document.createElement('option');
+            option.value = value;
+            option.textContent = formatDate(value);
+            deliveryDateSelect.appendChild(option);
+            current.setDate(current.getDate() + 1);
+        }
+
+        // 先頭(空の選択肢)を明示的に選択状態にする(ブラウザの既定動作に頼らない)
+        deliveryDateSelect.value = '';
     }
 
     /**
@@ -105,7 +156,19 @@
             stockEl.hidden = true;
         }
 
-        document.getElementById('product-detail-delivery-date').textContent = formatDate(sale.delivery_date);
+        // 注文受付期間(sale_start_date〜sale_end_date)。配達予定日/配達予定期間とは別項目。
+        document.getElementById('product-detail-order-period').textContent =
+            formatDate(sale.sale_start_date) + '〜' + formatDate(sale.sale_end_date);
+
+        if (sale.requires_delivery_date_selection) {
+            document.getElementById('product-detail-delivery-date').textContent =
+                formatDate(sale.delivery_date_from) + '〜' + formatDate(sale.delivery_date_to);
+            renderDeliveryDateOptions(sale.delivery_date_from, sale.delivery_date_to);
+            deliveryDateFieldEl.hidden = false;
+        } else {
+            document.getElementById('product-detail-delivery-date').textContent = formatDate(sale.delivery_date);
+            deliveryDateFieldEl.hidden = true;
+        }
 
         var noteEl = document.getElementById('product-detail-delivery-note');
         if (sale.delivery_note) {
@@ -130,13 +193,27 @@
                         return;
                     }
 
-                    // 価格・合計金額・商品名・delivery_dateはURLに含めない。
-                    // B5側でPOST /orders/previewを呼び、そのレスポンスを正として表示する。
+                    // 配達予定日の選択が必須な商品で、まだ選ばれていない(value==="")場合は
+                    // 注文確認画面へ進ませない。サーバー側(preview/store)でも同じ理由で拒否されるが、
+                    // ここで止めておくことで、送信して初めてエラーに気づく手戻りを防ぐ。
+                    if (sale.requires_delivery_date_selection && !deliveryDateSelect.value) {
+                        showMessage('配達予定日を選択してください。');
+                        return;
+                    }
+                    messageEl.hidden = true;
+
+                    // 価格・合計金額はURLに含めない。B5側でPOST /orders/previewを呼び、
+                    // そのレスポンスを正として表示する。ただしdelivery_dateだけは、
+                    // 購入者がここで選んだ「意思」そのものなのでURLに含めて引き継ぐ
+                    // (選択不要な商品ではそもそもこの項目自体を表示していない)。
                     var params = new URLSearchParams();
                     params.set('product_sale_id', sale.id);
                     params.set('quantity', quantityInput.value || '1');
                     if (timeSlotSelect.value) {
                         params.set('delivery_time_slot', timeSlotSelect.value);
+                    }
+                    if (sale.requires_delivery_date_selection) {
+                        params.set('delivery_date', deliveryDateSelect.value);
                     }
 
                     window.location.href = orderConfirmBaseUrl + '?' + params.toString();

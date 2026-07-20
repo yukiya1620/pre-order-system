@@ -361,4 +361,24 @@ class OrderHistoryPageTest extends TestCase
         $this->assertStringContainsString('よろしいですか?', $js);
         $this->assertStringContainsString('注文はこの時点ではキャンセルされません。', $js);
     }
+
+    /**
+     * 配達予定期間のある商品を「前回と同じ内容で注文」した場合に、前回の配達予定日
+     * (reorder_params.delivery_date)がB5へのクエリ文字列に引き継がれることを確認する。
+     */
+    public function test_order_history_js_carries_delivery_date_when_reordering(): void
+    {
+        $js = file_get_contents(public_path('js/order-history.js'));
+
+        $this->assertStringContainsString('data.reorder_params.delivery_date', $js);
+        $this->assertStringContainsString("params.set('delivery_date', data.reorder_params.delivery_date)", $js);
+    }
+
+    public function test_order_detail_js_carries_delivery_date_when_reordering(): void
+    {
+        $js = file_get_contents(public_path('js/order-detail.js'));
+
+        $this->assertStringContainsString('data.reorder_params.delivery_date', $js);
+        $this->assertStringContainsString("params.set('delivery_date', data.reorder_params.delivery_date)", $js);
+    }
 }

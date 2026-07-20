@@ -1539,6 +1539,11 @@ input[type="file"] {
     color: #555555;
     margin: 0 0 8px;
 }
+.product-detail__order-period {
+    font-size: 16px;
+    color: #555555;
+    margin: 0 0 4px;
+}
 .product-detail__delivery {
     font-size: 16px;
     margin: 0 0 4px;

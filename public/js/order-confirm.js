@@ -40,7 +40,8 @@
         return {
             product_sale_id: Number(productSaleId),
             quantity: Number(quantity),
-            delivery_time_slot: params.get('delivery_time_slot') || null
+            delivery_time_slot: params.get('delivery_time_slot') || null,
+            delivery_date: params.get('delivery_date') || null
         };
     }
 

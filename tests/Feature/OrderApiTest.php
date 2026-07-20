@@ -135,6 +135,247 @@ class OrderApiTest extends TestCase
         $response->assertJsonPath('error.code', 'OUT_OF_STOCK');
     }
 
+    // === 配達予定日の選択(delivery_date_toがdelivery_date_fromより後の日付の商品) ===
+
+    private function createRangedSale(array $overrides = []): ProductSale
+    {
+        return $this->createSale(array_merge([
+            'delivery_date_from' => now()->addDays(5)->toDateString(),
+            'delivery_date_to' => now()->addDays(7)->toDateString(),
+        ], $overrides));
+    }
+
+    public function test_preview_requires_delivery_date_for_ranged_product(): void
+    {
+        $sale = $this->createRangedSale();
+        $buyer = User::factory()->create();
+
+        $response = $this->actingAs($buyer)->postJson('/api/v1/orders/preview', [
+            'product_sale_id' => $sale->id,
+            'quantity' => 1,
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonPath('error.code', 'DELIVERY_DATE_REQUIRED');
+    }
+
+    /**
+     * B4の選択欄は空文字("配達予定日を選択してください")を初期選択にしている。
+     * 未選択のまま送信された場合(=空文字)も、未指定と同じくDELIVERY_DATE_REQUIREDで拒否する。
+     */
+    public function test_preview_rejects_empty_string_delivery_date_for_ranged_product(): void
+    {
+        $sale = $this->createRangedSale();
+        $buyer = User::factory()->create();
+
+        $response = $this->actingAs($buyer)->postJson('/api/v1/orders/preview', [
+            'product_sale_id' => $sale->id,
+            'quantity' => 1,
+            'delivery_date' => '',
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonPath('error.code', 'DELIVERY_DATE_REQUIRED');
+    }
+
+    public function test_store_rejects_empty_string_delivery_date_for_ranged_product(): void
+    {
+        $sale = $this->createRangedSale();
+        $buyer = User::factory()->create();
+
+        $response = $this->actingAs($buyer)->postJson('/api/v1/orders', [
+            'product_sale_id' => $sale->id,
+            'quantity' => 1,
+            'delivery_date' => '',
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonPath('error.code', 'DELIVERY_DATE_REQUIRED');
+        $this->assertSame(0, Order::count());
+    }
+
+    public function test_preview_accepts_delivery_date_within_range(): void
+    {
+        $sale = $this->createRangedSale();
+        $buyer = User::factory()->create();
+        $chosen = now()->addDays(6)->toDateString();
+
+        $response = $this->actingAs($buyer)->postJson('/api/v1/orders/preview', [
+            'product_sale_id' => $sale->id,
+            'quantity' => 1,
+            'delivery_date' => $chosen,
+        ]);
+
+        $response->assertOk();
+        $response->assertJsonPath('order_preview.delivery_date', $chosen);
+    }
+
+    public function test_preview_accepts_delivery_date_at_range_boundaries(): void
+    {
+        $sale = $this->createRangedSale();
+        $buyer = User::factory()->create();
+
+        $this->actingAs($buyer)->postJson('/api/v1/orders/preview', [
+            'product_sale_id' => $sale->id,
+            'quantity' => 1,
+            'delivery_date' => now()->addDays(5)->toDateString(),
+        ])->assertOk();
+
+        $this->actingAs($buyer)->postJson('/api/v1/orders/preview', [
+            'product_sale_id' => $sale->id,
+            'quantity' => 1,
+            'delivery_date' => now()->addDays(7)->toDateString(),
+        ])->assertOk();
+    }
+
+    public function test_preview_rejects_delivery_date_before_range(): void
+    {
+        $sale = $this->createRangedSale();
+        $buyer = User::factory()->create();
+
+        $response = $this->actingAs($buyer)->postJson('/api/v1/orders/preview', [
+            'product_sale_id' => $sale->id,
+            'quantity' => 1,
+            'delivery_date' => now()->addDays(4)->toDateString(),
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonPath('error.code', 'DELIVERY_DATE_OUT_OF_RANGE');
+    }
+
+    public function test_preview_rejects_delivery_date_after_range(): void
+    {
+        $sale = $this->createRangedSale();
+        $buyer = User::factory()->create();
+
+        $response = $this->actingAs($buyer)->postJson('/api/v1/orders/preview', [
+            'product_sale_id' => $sale->id,
+            'quantity' => 1,
+            'delivery_date' => now()->addDays(8)->toDateString(),
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonPath('error.code', 'DELIVERY_DATE_OUT_OF_RANGE');
+    }
+
+    public function test_preview_rejects_malformed_delivery_date_format(): void
+    {
+        $sale = $this->createRangedSale();
+        $buyer = User::factory()->create();
+
+        $response = $this->actingAs($buyer)->postJson('/api/v1/orders/preview', [
+            'product_sale_id' => $sale->id,
+            'quantity' => 1,
+            'delivery_date' => '2026/07/15',
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors('delivery_date');
+    }
+
+    public function test_preview_rejects_nonexistent_calendar_date(): void
+    {
+        $sale = $this->createRangedSale(['delivery_date_from' => '2026-02-01', 'delivery_date_to' => '2026-02-28']);
+        $buyer = User::factory()->create();
+
+        $response = $this->actingAs($buyer)->postJson('/api/v1/orders/preview', [
+            'product_sale_id' => $sale->id,
+            'quantity' => 1,
+            'delivery_date' => '2026-02-30',
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors('delivery_date');
+    }
+
+    public function test_preview_ignores_delivery_date_for_single_day_product(): void
+    {
+        $deliveryDate = now()->addDays(3)->toDateString();
+        $sale = $this->createSale(['delivery_date_from' => $deliveryDate]);
+        $buyer = User::factory()->create();
+
+        $response = $this->actingAs($buyer)->postJson('/api/v1/orders/preview', [
+            'product_sale_id' => $sale->id,
+            'quantity' => 1,
+            'delivery_date' => now()->addDays(20)->toDateString(),
+        ]);
+
+        $response->assertOk();
+        $response->assertJsonPath('order_preview.delivery_date', $deliveryDate);
+    }
+
+    public function test_store_requires_delivery_date_for_ranged_product(): void
+    {
+        $sale = $this->createRangedSale();
+        $buyer = User::factory()->create();
+
+        $response = $this->actingAs($buyer)->postJson('/api/v1/orders', [
+            'product_sale_id' => $sale->id,
+            'quantity' => 1,
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonPath('error.code', 'DELIVERY_DATE_REQUIRED');
+        $this->assertSame(0, Order::count());
+        $this->assertSame(10, $sale->fresh()->stock_quantity);
+    }
+
+    public function test_store_creates_order_with_chosen_delivery_date(): void
+    {
+        $sale = $this->createRangedSale();
+        $buyer = User::factory()->create();
+        $chosen = now()->addDays(6)->toDateString();
+
+        $response = $this->actingAs($buyer)->postJson('/api/v1/orders', [
+            'product_sale_id' => $sale->id,
+            'quantity' => 2,
+            'delivery_date' => $chosen,
+        ]);
+
+        $response->assertStatus(201);
+        $response->assertJsonPath('order.delivery_date', $chosen);
+        $this->assertSame(8, $sale->fresh()->stock_quantity);
+    }
+
+    /**
+     * 「画面上の値を改ざんしても期間外の日付では注文できない」ことの直接的な検証。
+     * クライアント側の制約を一切経由せず、APIへ直接、期間から大きく外れた日付を送る。
+     */
+    public function test_store_rejects_out_of_range_delivery_date_even_when_sent_directly(): void
+    {
+        $sale = $this->createRangedSale();
+        $buyer = User::factory()->create();
+
+        $response = $this->actingAs($buyer)->postJson('/api/v1/orders', [
+            'product_sale_id' => $sale->id,
+            'quantity' => 1,
+            'delivery_date' => now()->addDays(100)->toDateString(),
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonPath('error.code', 'DELIVERY_DATE_OUT_OF_RANGE');
+        $this->assertSame(0, Order::count());
+        $this->assertSame(10, $sale->fresh()->stock_quantity);
+    }
+
+    public function test_store_ignores_delivery_date_for_auto_type_product(): void
+    {
+        $sale = $this->createSale([
+            'delivery_date_type' => ProductSale::DELIVERY_DATE_TYPE_AUTO,
+            'earliest_delivery_days' => 1,
+        ]);
+        $buyer = User::factory()->create();
+
+        $response = $this->actingAs($buyer)->postJson('/api/v1/orders', [
+            'product_sale_id' => $sale->id,
+            'quantity' => 1,
+            'delivery_date' => now()->addDays(50)->toDateString(),
+        ]);
+
+        $response->assertStatus(201);
+        $this->assertNotSame(now()->addDays(50)->toDateString(), $response->json('order.delivery_date'));
+    }
+
     // === store ===
 
     public function test_guest_cannot_place_order(): void
@@ -483,6 +724,40 @@ class OrderApiTest extends TestCase
 
         $response->assertStatus(422);
         $response->assertJsonPath('error.code', 'OUT_OF_STOCK');
+    }
+
+    public function test_reorder_preview_reuses_previous_delivery_date_for_ranged_product(): void
+    {
+        $sale = $this->createRangedSale();
+        $buyer = User::factory()->create();
+        $order = $this->createOrderFor($buyer, $sale);
+        $previousDate = now()->addDays(6)->toDateString();
+        $order->forceFill(['delivery_date' => $previousDate])->save();
+
+        $response = $this->actingAs($buyer)->postJson('/api/v1/orders/'.$order->id.'/reorder-preview');
+
+        $response->assertOk();
+        $response->assertJsonPath('order_preview.delivery_date', $previousDate);
+        $response->assertJsonPath('reorder_params.delivery_date', $previousDate);
+    }
+
+    public function test_reorder_preview_rejects_when_previous_delivery_date_no_longer_in_range(): void
+    {
+        $sale = $this->createRangedSale();
+        $buyer = User::factory()->create();
+        $order = $this->createOrderFor($buyer, $sale);
+        $order->forceFill(['delivery_date' => now()->addDays(6)->toDateString()])->save();
+
+        // 販売シーズンの配達期間が後から変わり、以前の注文日が期間外になったケースを再現する
+        $sale->update([
+            'delivery_date_from' => now()->addDays(10)->toDateString(),
+            'delivery_date_to' => now()->addDays(12)->toDateString(),
+        ]);
+
+        $response = $this->actingAs($buyer)->postJson('/api/v1/orders/'.$order->id.'/reorder-preview');
+
+        $response->assertStatus(422);
+        $response->assertJsonPath('error.code', 'DELIVERY_DATE_OUT_OF_RANGE');
     }
 
     public function test_reorder_preview_when_order_has_no_items(): void

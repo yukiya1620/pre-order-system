@@ -10,6 +10,7 @@ use App\Models\Order;
 use App\Models\OrderAdjustment;
 use App\Models\OrderChangeRequest;
 use App\Models\Product;
+use App\Models\ProductSale;
 use App\Models\User;
 use App\Services\SalesService;
 use Database\Seeders\PortfolioDemoSeeder;
@@ -88,6 +89,55 @@ class PortfolioDemoSeederTest extends TestCase
         $this->assertSame(6, Product::whereIn('name', self::DEMO_PRODUCT_NAMES)->count());
         $this->assertSame(10, Order::where('order_number', 'like', 'DEMO-%')->count());
         $this->assertSame(5, Announcement::whereIn('title', self::DEMO_ANNOUNCEMENT_TITLES)->count());
+    }
+
+    /**
+     * 配達予定日の選択機能(3.5節)をポートフォリオ上で確認できるよう、
+     * 朝採れとうもろこしだけが配達予定期間(3日間)を持つ。他の単日商品には影響しない。
+     */
+    public function test_corn_has_selectable_delivery_date_range_and_other_products_do_not(): void
+    {
+        $today = now()->startOfDay();
+
+        $this->runSeeder();
+
+        $corn = ProductSale::whereHas('product', function ($query) {
+            $query->where('name', '朝採れとうもろこし');
+        })->firstOrFail();
+
+        $this->assertSame($today->copy()->addDays(3)->toDateString(), $corn->delivery_date_from->toDateString());
+        $this->assertSame($today->copy()->addDays(5)->toDateString(), $corn->delivery_date_to->toDateString());
+        $this->assertTrue($corn->requiresDeliveryDateSelection());
+
+        $otherProductNames = array_diff(self::DEMO_PRODUCT_NAMES, ['朝採れとうもろこし']);
+        $others = ProductSale::whereHas('product', function ($query) use ($otherProductNames) {
+            $query->whereIn('name', $otherProductNames);
+        })->get();
+
+        $this->assertCount(5, $others);
+        foreach ($others as $sale) {
+            $this->assertFalse($sale->requiresDeliveryDateSelection(), $sale->product->name.'は選択不要のはず');
+        }
+    }
+
+    /**
+     * Seederを複数回実行しても、とうもろこしの配達予定期間が重複・不整合を起こさないこと。
+     */
+    public function test_running_seeder_twice_keeps_corn_delivery_date_range_consistent(): void
+    {
+        $this->runSeeder();
+        $this->runSeeder();
+
+        $corns = ProductSale::whereHas('product', function ($query) {
+            $query->where('name', '朝採れとうもろこし');
+        })->get();
+
+        $this->assertCount(1, $corns);
+
+        $corn = $corns->first();
+        $this->assertNotNull($corn->delivery_date_to);
+        $this->assertTrue($corn->delivery_date_to->gt($corn->delivery_date_from));
+        $this->assertTrue($corn->requiresDeliveryDateSelection());
     }
 
     public function test_running_seeder_twice_does_not_increase_counts(): void
