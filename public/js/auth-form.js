@@ -44,6 +44,9 @@
     var collected = { name: '', phone_number: '', address: '', email: '' };
     var pendingRegistrationEscalation = false;
     var cooldownInterval = null;
+    // 一般公開デモ環境(DEMO_MODE=true かつホワイトリスト登録済みの電話番号)でのみ、
+    // /api/v1/auth/sms/send のレスポンスに demo_code が含まれる。それ以外は常にnull。
+    var lastDemoCode = null;
 
     function showGeneralMessage(text) {
         generalMessageEl.textContent = text;
@@ -216,11 +219,25 @@
             if (!response.ok) {
                 throw new Error('unexpected status ' + response.status);
             }
-            return true;
+            return response.json().then(function (data) {
+                lastDemoCode = data.demo_code || null;
+                return true;
+            });
         }).catch(function () {
             showGeneralMessage('認証コードの送信に失敗しました。時間をおいてもう一度お試しください。');
             return false;
         });
+    }
+
+    /**
+     * 一般公開デモ環境でだけ、送信済みの認証コードを画面に表示する文言を作る。
+     * lastDemoCodeがnull(通常環境、またはホワイトリスト外の番号)の場合は何も付け足さない。
+     */
+    function appendDemoCodeNote(baseText) {
+        if (!lastDemoCode) {
+            return baseText;
+        }
+        return baseText + ' 【デモ環境】認証コード: ' + lastDemoCode;
     }
 
     function goToCodeStepAfterSending() {
@@ -230,7 +247,7 @@
                 return;
             }
             startResendCooldown();
-            codeSentNoteEl.textContent = collected.phone_number + ' 宛てに認証コードを送信しました(5分間有効です)。';
+            codeSentNoteEl.textContent = appendDemoCodeNote(collected.phone_number + ' 宛てに認証コードを送信しました(5分間有効です)。');
             currentIndex = steps.indexOf('code');
             renderStep();
         });
@@ -294,7 +311,7 @@
         sendCode().then(function (ok) {
             if (ok) {
                 startResendCooldown();
-                codeSentNoteEl.textContent = collected.phone_number + ' 宛てに新しい認証コードを送信しました(5分間有効です)。';
+                codeSentNoteEl.textContent = appendDemoCodeNote(collected.phone_number + ' 宛てに新しい認証コードを送信しました(5分間有効です)。');
             }
         });
     });

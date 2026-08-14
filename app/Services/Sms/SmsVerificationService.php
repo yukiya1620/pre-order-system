@@ -22,13 +22,15 @@ class SmsVerificationService
     }
 
     /**
-     * 電話番号あてに6桁の認証コードを送信する
+     * 電話番号あてに6桁の認証コードを送信する。
+     * 戻り値の SmsVerification は、一般公開デモ環境でホワイトリスト登録された
+     * 電話番号にだけ認証コードをレスポンスへ含める(SmsAuthController参照)ために使う。
      */
-    public function sendCode(string $phoneNumber): void
+    public function sendCode(string $phoneNumber): SmsVerification
     {
         $code = (string) random_int(10 ** (self::CODE_DIGITS - 1), (10 ** self::CODE_DIGITS) - 1);
 
-        SmsVerification::create([
+        $verification = SmsVerification::create([
             'phone_number' => $phoneNumber,
             'code' => $code,
             'expires_at' => now()->addMinutes(self::CODE_EXPIRES_MINUTES),
@@ -39,6 +41,8 @@ class SmsVerificationService
             $phoneNumber,
             '【予約注文システム】認証コードは '.$code.' です。'.self::CODE_EXPIRES_MINUTES.'分以内にご入力ください。'
         );
+
+        return $verification;
     }
 
     /**

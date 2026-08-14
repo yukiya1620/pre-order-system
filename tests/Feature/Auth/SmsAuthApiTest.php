@@ -37,6 +37,72 @@ class SmsAuthApiTest extends TestCase
         $this->assertSame(1, SmsVerification::where('phone_number', '09011112222')->count());
     }
 
+    public function test_send_does_not_include_demo_code_when_demo_mode_disabled(): void
+    {
+        config([
+            'demo.enabled' => false,
+            'demo.sms_phone_numbers' => ['09011112222'],
+        ]);
+
+        $response = $this->postJson('/api/v1/auth/sms/send', ['phone_number' => '09011112222']);
+
+        $response->assertOk();
+        $response->assertJsonMissing(['demo_code' => null]);
+        $this->assertArrayNotHasKey('demo_code', $response->json());
+    }
+
+    public function test_send_does_not_include_demo_code_for_non_whitelisted_phone_even_when_demo_mode_enabled(): void
+    {
+        config([
+            'demo.enabled' => true,
+            'demo.sms_phone_numbers' => ['00000000001'],
+        ]);
+
+        $response = $this->postJson('/api/v1/auth/sms/send', ['phone_number' => '09011112222']);
+
+        $response->assertOk();
+        $this->assertArrayNotHasKey('demo_code', $response->json());
+    }
+
+    public function test_send_includes_demo_code_when_demo_mode_enabled_and_phone_whitelisted(): void
+    {
+        config([
+            'demo.enabled' => true,
+            'demo.sms_phone_numbers' => ['09011112222'],
+        ]);
+
+        $response = $this->postJson('/api/v1/auth/sms/send', ['phone_number' => '09011112222']);
+
+        $response->assertOk();
+        $verification = SmsVerification::where('phone_number', '09011112222')->latest('id')->first();
+        $response->assertJsonPath('demo_code', $verification->code);
+    }
+
+    public function test_send_is_rate_limited_per_phone_number(): void
+    {
+        for ($i = 0; $i < 5; $i++) {
+            $this->postJson('/api/v1/auth/sms/send', ['phone_number' => '09011112222'])
+                ->assertOk();
+        }
+
+        $response = $this->postJson('/api/v1/auth/sms/send', ['phone_number' => '09011112222']);
+
+        $response->assertStatus(429);
+    }
+
+    public function test_send_rate_limit_is_tracked_separately_per_phone_number(): void
+    {
+        for ($i = 0; $i < 5; $i++) {
+            $this->postJson('/api/v1/auth/sms/send', ['phone_number' => '09011112222'])
+                ->assertOk();
+        }
+
+        // 別の電話番号は、直前の番号が上限に達していても影響を受けない
+        $response = $this->postJson('/api/v1/auth/sms/send', ['phone_number' => '09099998888']);
+
+        $response->assertOk();
+    }
+
     public function test_send_with_invalid_phone_number_format_returns_422(): void
     {
         $response = $this->postJson('/api/v1/auth/sms/send', ['phone_number' => '090-1111-2222']);

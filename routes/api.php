@@ -20,7 +20,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
     Route::prefix('auth')->group(function () {
-        Route::post('sms/send', [SmsAuthController::class, 'send']);
+        Route::post('sms/send', [SmsAuthController::class, 'send'])->middleware('throttle:sms-send');
         Route::post('sms/verify', [SmsAuthController::class, 'verify']);
         Route::post('login', [AuthController::class, 'login']);
         Route::post('logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');

@@ -22,11 +22,31 @@ class SmsAuthController extends Controller
      */
     public function send(SendSmsCodeRequest $request): JsonResponse
     {
-        $this->smsVerificationService->sendCode($request->string('phone_number')->toString());
+        $phoneNumber = $request->string('phone_number')->toString();
+        $verification = $this->smsVerificationService->sendCode($phoneNumber);
 
-        return response()->json([
+        $payload = [
             'message' => '認証コードを送信しました。',
-        ]);
+        ];
+
+        if ($this->isDemoCodeVisible($phoneNumber)) {
+            $payload['demo_code'] = $verification->code;
+        }
+
+        return response()->json($payload);
+    }
+
+    /**
+     * 一般公開デモ環境で、閲覧者が実際のSMSを受け取らずに認証を体験できるよう、
+     * 認証コードをレスポンスへ含めてよいかどうかを判定する。
+     * 以下の両方を満たす場合のみtrue(どちらか片方でもfalseなら絶対にコードを含めない)。
+     * - DEMO_MODE=true(config/demo.php の 'enabled')
+     * - 電話番号が DEMO_SMS_PHONE_NUMBERS のホワイトリストに含まれている
+     */
+    private function isDemoCodeVisible(string $phoneNumber): bool
+    {
+        return config('demo.enabled') === true
+            && in_array($phoneNumber, config('demo.sms_phone_numbers', []), true);
     }
 
     /**
