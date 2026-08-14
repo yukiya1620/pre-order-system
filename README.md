@@ -90,14 +90,14 @@ php artisan serve
 - 購入者会員登録: `http://127.0.0.1:8000/register`
 - 農家ログイン: `http://127.0.0.1:8000/login`
 
-## デモ用農家アカウント
+## ローカル開発用アカウント
 
 `php artisan migrate --seed` を実行すると、動作確認用の農家アカウントが1件作成されます。
 
 - メールアドレス: `farmer@example.com`
 - パスワード: `password`
 
-**このアカウントはローカル・デモ環境専用です。本番環境で使う場合は、必ずパスワードを変更するか、アカウント自体を削除してください。**
+**このアカウントはローカル開発専用です。** 一般公開デモ環境(下記「一般公開デモ環境について」を参照)では、この `DatabaseSeeder` は実行せず、`farmer@example.com` は作成しません。このアカウントを本番相当の環境で使う場合は、必ずパスワードを変更するか、アカウント自体を削除してください。
 
 購入者の初期アカウントは存在しません。購入者は会員登録画面(`/register`)からSMS認証で自分自身のアカウントを作成します(下記「購入者のSMS認証登録」を参照)。
 
@@ -105,15 +105,15 @@ php artisan serve
 
 会員登録画面(`/register`)から、名前・電話番号・住所・メール(任意)を入力し、SMS認証コードを検証してアカウントを作成します。開発・デモ環境でのSMS認証コードの確認方法は「SMS送信の現在の仕様」を参照してください。
 
-## ポートフォリオ用デモデータ
+## ポートフォリオ用デモデータ(ローカル開発用)
 
-ポートフォリオ・作品レビュー用に、農家1件・購入者複数件・商品複数件・注文複数件などをまとめて投入する `PortfolioDemoSeeder` を用意しています。通常のセットアップ手順(`php artisan migrate --seed`)や、上記「デモ用農家アカウント」の `farmer@example.com` とは完全に独立した、別のSeederです。
+ポートフォリオ・作品レビュー用に、農家1件・購入者複数件・商品複数件・注文複数件などをまとめて投入する `PortfolioDemoSeeder` を用意しています。通常のセットアップ手順(`php artisan migrate --seed`)や、上記「ローカル開発用アカウント」の `farmer@example.com` とは完全に独立した、別のSeederです。
 
 ```bash
 php artisan db:seed --class=PortfolioDemoSeeder
 ```
 
-**このSeederはローカル・デモ環境専用です。** 実行環境が `production` の場合、`--force` オプションの有無にかかわらず必ず実行を拒否します。
+**このコマンドはローカル開発環境専用です。** 実行環境が `production` の場合、`--force` オプションの有無にかかわらず必ず実行を拒否します。一般公開デモ環境(`reservation-demo.kazeyui.com`)での初期データ作成・リセットには、このコマンドではなく `php artisan demo:reset` を使います。詳しくは [docs/demo-deployment.md](docs/demo-deployment.md) を参照してください。
 
 ### 再実行時の挙動
 
@@ -137,6 +137,8 @@ php artisan db:seed --class=PortfolioDemoSeeder
 デモ商品の画像は `database/seeders/demo-assets/products/` に格納されています。Seeder実行時に、この画像が `storage/app/public/products/portfolio-demo/` へ自動的にコピーされます。通常のセットアップと同様、画面に表示するには `php artisan storage:link` の実行が必要です(実行済みでない場合は404になります)。
 
 ### ログイン情報
+
+ここに記載のアカウント・電話番号は、ローカル開発環境(このSeederを直接実行した場合)・一般公開デモ環境(`php artisan demo:reset` を実行した場合)のどちらでも共通です(どちらも同じ `PortfolioDemoSeeder` のデータを使うため)。
 
 **デモ農家(メールアドレス+パスワードでログイン)**
 
@@ -209,12 +211,18 @@ php artisan schedule:work
 
 本番環境でSMSを実際に送信するには、Twilio等の実際のSMS送信APIを呼び出す `SmsSender` の実装を新たに作成し、`App\Providers\AppServiceProvider` のバインド先を差し替える必要があります(現時点ではこの本番実装は未着手です)。
 
+## 一般公開デモ環境について
+
+このシステムを一般公開デモとして体験できる環境を `reservation-demo.kazeyui.com` に用意しています。公開デモ環境は `APP_ENV=production` かつ `DEMO_MODE=true` で動作し、`DatabaseSeeder`(`farmer@example.com`)は実行せず、`PortfolioDemoSeeder` のデータ(上記「ログイン情報」参照)のみが存在します。
+
+公開デモ環境の構築手順・環境変数・運用方法(Scheduler・`demo:reset` によるデータリセットなど)は [docs/demo-deployment.md](docs/demo-deployment.md) にまとめています。
+
 ## 本番環境での注意事項
 
 - `.env` の `APP_ENV` を `production`、`APP_DEBUG` を `false` に設定してください(`.env.example` は開発向けの値のままです)。
 - `APP_KEY` や `.env` ファイル自体、`database/database.sqlite` をGitやその他の方法で公開しないでください。
-- 上記の「デモ用農家アカウント」のパスワードを変更するか、アカウントを削除してください。
-- 上記の「SMS送信の現在の仕様」の通り、本番でSMS認証を使う場合は送信実装の差し替えが必須です。
+- 上記の「ローカル開発用アカウント」(`farmer@example.com`)は、本番相当の環境では作成しないか、パスワードを変更・アカウントを削除してください(一般公開デモ環境では、この項目の対応どおりそもそも作成していません)。
+- 上記の「SMS送信の現在の仕様」の通り、本番でSMS認証を使う場合は送信実装の差し替えが必須です(ただし、一般公開デモ環境は例外的に `LogSmsSender` のままとし、`DEMO_MODE` の仕組みで認証コードを画面表示します。詳しくは [docs/demo-deployment.md](docs/demo-deployment.md) を参照)。
 - 必要に応じて、以下のような最適化コマンドを実行してください(任意のデプロイ手順の一例です)。
 
 ```bash
