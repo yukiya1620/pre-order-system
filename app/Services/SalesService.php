@@ -61,7 +61,7 @@ class SalesService
 
         $this->applyPeriod($query, $period);
 
-        return $query
+        $rows = $query
             ->groupBy('products.id', 'products.name')
             ->orderByDesc('total_amount')
             ->get([
@@ -70,6 +70,16 @@ class SalesService
                 DB::raw('SUM(order_items.subtotal) as total_amount'),
                 DB::raw('SUM(order_items.quantity) as total_quantity'),
             ]);
+
+        // SUM()の返り値はSQLiteではint、MySQLでは文字列型になるなど、DBエンジンによって
+        // PHP側の型が変わる(aggregate()の(int)キャストと同じ理由)。APIレスポンスの型を
+        // DBエンジンに依存させないよう、ここで明示的にintへ揃える。
+        return $rows->map(function ($row) {
+            $row->total_amount = (int) $row->total_amount;
+            $row->total_quantity = (int) $row->total_quantity;
+
+            return $row;
+        });
     }
 
     private function confirmedQuery(): Builder
