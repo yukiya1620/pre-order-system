@@ -70,9 +70,32 @@ class PortfolioDemoSeeder extends Seeder
         '朝採れほうれん草' => 'spinach.jpg',
     ];
 
+    /**
+     * `php artisan db:seed --class=PortfolioDemoSeeder` など、通常のSeeder実行経路。
+     * production環境では(DEMO_MODEの設定に関わらず)必ず拒否する。
+     * これにより「PortfolioDemoSeederをproductionで直接実行できる一般的な経路」は
+     * 従来通り一切存在しない状態を保つ。production向けの一般公開デモリセットは、
+     * 必ず php artisan demo:reset (App\Console\Commands\ResetDemoData) を経由し、
+     * そちらが execute() を直接呼び出す(このrun()は経由しない)。
+     */
     public function run(): void
     {
         $this->guardAgainstProduction();
+
+        $this->execute();
+    }
+
+    /**
+     * デモデータの削除・再作成本体。guardAgainstProduction()は経由しないため、
+     * production環境で呼び出してよいかどうかの判断は呼び出し元の責務になる。
+     * 現在の呼び出し元は run()(既にproduction拒否済み)と、
+     * ResetDemoDataコマンド(demo:reset、DEMO_MODE=trueの場合のみ呼び出す)の2つだけ。
+     * 万一それ以外の経路から直接呼ばれた場合の保険として、
+     * production + DEMO_MODE無効の組み合わせだけは、ここでも重ねて拒否する。
+     */
+    public function execute(): void
+    {
+        $this->guardAgainstDemoModeDisabledInProduction();
 
         $imagePaths = $this->prepareDemoImages();
 
@@ -98,6 +121,20 @@ class PortfolioDemoSeeder extends Seeder
             $this->command?->error('PortfolioDemoSeederは本番環境(production)では実行できません。');
 
             throw new RuntimeException('PortfolioDemoSeeder cannot run in the production environment.');
+        }
+    }
+
+    /**
+     * execute()用の軽量ガード。production環境では、DEMO_MODEが明示的に有効(config('demo.enabled') === true)
+     * な場合だけ実行を許す。production以外の環境では常に許可する(そちらはrun()経由ならguardAgainstProduction()、
+     * demo:resetコマンド経由ならコマンド側のガードで既に守られているため)。
+     */
+    private function guardAgainstDemoModeDisabledInProduction(): void
+    {
+        if (app()->environment('production') && config('demo.enabled') !== true) {
+            $this->command?->error('PortfolioDemoSeederは、本番環境(production)ではDEMO_MODEが有効な場合のみ実行できます。');
+
+            throw new RuntimeException('PortfolioDemoSeeder cannot run in production unless DEMO_MODE is enabled.');
         }
     }
 
