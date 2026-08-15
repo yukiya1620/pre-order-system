@@ -15,3 +15,9 @@ Schedule::command('orders:generate-delivery-confirmations')->dailyAt('07:00');
 Schedule::command('orders:update-product-sale-statuses')->dailyAt('00:05');
 // 毎夕17:00: まだ回答されていない配達確認について、農家へ再通知する
 Schedule::command('orders:remind-unanswered-delivery-confirmations')->dailyAt('17:00');
+
+// 一般公開デモ環境
+// 毎日4:00: 公開デモの操作結果を初期状態へ戻す
+Schedule::command('demo:reset')
+    ->dailyAt('04:00')
+    ->environments(['production']);
