@@ -24,6 +24,19 @@
             </nav>
         </header>
 
+        {{--
+            一般公開デモ専用の「使い方を見る」ボタン。DEMO_MODE=trueのときだけ表示する。
+            アカウント操作(ログイン・ログアウト等)のnavとは意味が異なるため、
+            header内のnavには混ぜず、header直下に独立した導線として置く。
+            商品一覧・お知らせより前にあるので、PC・スマホどちらでも
+            ページを開いてすぐ目に入り、かつ商品閲覧そのものは邪魔しない位置。
+        --}}
+        @if (config('demo.enabled'))
+            <p class="demo-tutorial-start-button-wrap">
+                <button type="button" id="buyer-home-tutorial-start-button" class="demo-tutorial-start-button">💡 使い方を見る</button>
+            </p>
+        @endif
+
         <p id="buyer-home-message" class="message message-error" hidden></p>
 
         <section class="buyer-home-page__announcements" aria-label="お知らせ">
@@ -43,4 +56,12 @@
 
 @push('scripts')
     <script src="{{ asset('js/buyer-home.js') }}" defer></script>
+    {{--
+        商品一覧のチュートリアル接続コード(ステップ定義・開始ボタンの制御)。
+        共通基盤(demo-tutorial.js)や商品取得処理(buyer-home.js)には手を
+        入れず、この画面専用のファイルとして分離する。
+    --}}
+    @if (config('demo.enabled'))
+        <script src="{{ asset('js/buyer-home-tutorial.js') }}" defer></script>
+    @endif
 @endpush

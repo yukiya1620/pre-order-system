@@ -88,9 +88,19 @@
         return { icon: '', label: '現在注文できません', cls: 'product-status-badge--ended', orderable: false };
     }
 
-    function buildCard(sale) {
+    /**
+     * isFirst: 一般公開デモの操作チュートリアル(第2段階)が、表示中の商品のうち
+     * 最初の1件をスポットライト対象として見つけられるようにするための目印。
+     * data属性を付けるだけで、商品取得・表示・クリック時の遷移処理には一切影響しない。
+     * DEMO_MODEの値に関わらず常時付与する(実害がなく、チュートリアル側の
+     * DEMO_MODE判定と責務を分けるため)。
+     */
+    function buildCard(sale, isFirst) {
         var card = document.createElement('div');
         card.className = 'product-card';
+        if (isFirst) {
+            card.dataset.demoTutorial = 'buyer-product-card';
+        }
 
         card.appendChild(buildImageElement(sale.product));
 
@@ -167,9 +177,17 @@
         }
         productsEmptyEl.hidden = true;
 
-        filtered.forEach(function (sale) {
-            productsListEl.appendChild(buildCard(sale));
+        filtered.forEach(function (sale, index) {
+            productsListEl.appendChild(buildCard(sale, index === 0));
         });
+
+        // 一般公開デモの操作チュートリアル(第2段階)向けに、商品カードの
+        // 描画が完了したことを知らせる。チュートリアル側はこのイベントを
+        // 待ってから対象要素を探すことで、setTimeoutの秒数決め打ちに頼らずに
+        // 「動的DOM生成完了後」を安全に検知できる。チュートリアルを
+        // 読み込んでいない(DEMO_MODE=falseの)画面でも、このイベントを
+        // 受け取るリスナーが存在しないだけで、発火自体は無害。
+        document.dispatchEvent(new CustomEvent('demo-tutorial:buyer-products-rendered'));
     }
 
     /**

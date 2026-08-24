@@ -1,0 +1,193 @@
+/*
+ * 一般公開デモ専用の操作チュートリアル(ガイドツアー)のスタイル。
+ * DEMO_MODE=true のときだけ layouts/app.blade.php から読み込まれる
+ * (詳細は resources/views/layouts/app.blade.php のコメントを参照)。
+ *
+ * 設計方針(重要):
+ * このチュートリアルは「モーダル」ではなく、実画面を操作しながら進める
+ * 「ガイドツアー」として作る。そのため、暗転させるオーバーレイは
+ * スポットライト対象の四方を覆う4枚の帯(上下左右)として実装し、
+ * 対象要素の上には何も重ねない。これにより対象要素は常に本来の
+ * クリック・タップ・キーボード操作をそのまま受け付ける。
+ *
+ * 文字サイズ・ボタン高さは app.css の基準(18px以上・56px以上)に合わせる。
+ */
+
+.demo-tutorial-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9990;
+    pointer-events: none;
+}
+
+/*
+ * 暗転させる帯(上下左右の4枚)。それぞれJSが対象要素の位置に応じて
+ * top/left/width/heightを計算して配置する。ここではベースの見た目だけ定義する。
+ * pointer-events: auto にして、暗転部分をクリック・タップしても
+ * 下にあるページの要素へは操作が届かない(誤操作防止)ようにする。
+ * ただし暗転部分自体をクリックしても閉じたりはしない
+ * (「間違って閉じてしまう」事故を避けるため、背景クリックでは何もしない)。
+ */
+.demo-tutorial-overlay__segment {
+    position: absolute;
+    background-color: rgba(20, 20, 20, 0.55);
+    pointer-events: auto;
+}
+
+/*
+ * スポットライト対象要素そのものに付与する一時クラス。
+ * 対象を暗転の上に浮き上がらせて見せるための枠線・光彩のみで、
+ * position/z-indexの調整は「対象要素の重なり順を後ろに落とす祖先」がある
+ * 場合にだけ最小限行う(通常は不要)。
+ */
+.demo-tutorial-highlight {
+    position: relative;
+    z-index: 9991;
+    outline: 3px solid #ffb300;
+    outline-offset: 3px;
+    border-radius: 6px;
+    box-shadow: 0 0 0 6px rgba(255, 179, 0, 0.35);
+}
+
+/* 吹き出し(説明パネル) */
+.demo-tutorial-tooltip {
+    position: fixed;
+    z-index: 9992;
+    box-sizing: border-box;
+    width: min(360px, 90vw);
+    max-width: 90vw;
+    padding: 20px;
+    background-color: #ffffff;
+    border: 1px solid var(--color-border, #cccccc);
+    border-radius: 10px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
+    color: var(--color-text, #1a1a1a);
+}
+
+.demo-tutorial-tooltip__step {
+    margin: 0 0 8px;
+    font-size: 14px;
+    font-weight: bold;
+    color: var(--color-accent, #2e7d32);
+}
+
+.demo-tutorial-tooltip__desc {
+    margin: 0 0 16px;
+    font-size: 18px;
+    line-height: 1.6;
+}
+
+.demo-tutorial-tooltip__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+.demo-tutorial-tooltip__button {
+    box-sizing: border-box;
+    min-height: 48px;
+    padding: 8px 20px;
+    font-size: 16px;
+    font-weight: bold;
+    line-height: 1.4;
+    color: #ffffff;
+    background-color: var(--color-accent, #2e7d32);
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.demo-tutorial-tooltip__button:hover {
+    filter: brightness(0.92);
+}
+
+.demo-tutorial-tooltip__button--secondary {
+    color: var(--color-text, #1a1a1a);
+    background-color: #eeeeee;
+}
+
+/* フォーカス表示。app.cssの:focus-visibleの考え方(Tab操作時のみ表示)に合わせる。 */
+.demo-tutorial-tooltip__button:focus-visible,
+.demo-tutorial-tooltip__close:focus-visible {
+    outline: 3px solid #1565c0;
+    outline-offset: 2px;
+}
+
+.demo-tutorial-tooltip__close {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 40px;
+    height: 40px;
+    font-size: 20px;
+    line-height: 1;
+    color: var(--color-text, #1a1a1a);
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.demo-tutorial-tooltip__close:hover {
+    background-color: #f0f0f0;
+}
+
+/*
+ * 「使い方を見る」ボタン。第1段階では各画面への設置は行わないが、
+ * 次段階以降で画面に置いたときのために、共通の見た目だけ用意しておく。
+ */
+/*
+ * 「使い方を見る」ボタンを置く段落の共通ラッパー。画面固有のCSS(app.css)
+ * には手を入れず、チュートリアル関連の見た目はすべてこのファイルに閉じ込める。
+ * 複数画面で使い回せるよう、画面名を含まない汎用クラス名にしている。
+ */
+.demo-tutorial-start-button-wrap {
+    margin: 0 0 20px;
+}
+
+.demo-tutorial-start-button {
+    box-sizing: border-box;
+    min-height: 48px;
+    padding: 8px 16px;
+    font-size: 16px;
+    font-weight: bold;
+    color: var(--color-accent, #2e7d32);
+    background-color: #ffffff;
+    border: 2px solid var(--color-accent, #2e7d32);
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.demo-tutorial-start-button:hover {
+    background-color: #eef7ee;
+}
+
+.demo-tutorial-start-button:focus-visible {
+    outline: 3px solid #1565c0;
+    outline-offset: 2px;
+}
+
+/* 縦画面390px前後。吹き出しの余白を少し詰め、ボタンを横幅いっぱいにして押しやすくする。 */
+@media (max-width: 480px) {
+    .demo-tutorial-tooltip {
+        padding: 16px;
+    }
+
+    .demo-tutorial-tooltip__actions {
+        justify-content: stretch;
+    }
+
+    .demo-tutorial-tooltip__button {
+        flex: 1 1 auto;
+    }
+}
+
+/* アニメーションを好まない設定の利用者には、移動・フェードを行わない。 */
+@media (prefers-reduced-motion: reduce) {
+    .demo-tutorial-overlay__segment,
+    .demo-tutorial-tooltip {
+        transition: none !important;
+    }
+}
