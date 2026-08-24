@@ -116,6 +116,14 @@
         tutorialKey: null,
         steps: [],
         stepIndex: 0,
+        // route: このツアーが動いているページを表す短い文字列
+        // (例: 'products.show')。ページをまたいで再開してよいかどうかの
+        // 判定に使うため、ツアー全体を通して1つの値を保持する
+        // (ステップごとに変わるものではない)。
+        route: null,
+        // extra: routeだけでは表現しきれない追加の目印(例: {reason: 'post-auth'})を
+        // 進行状況へ一緒に保存したい場合に使う。routeと同様、ツアー全体で1つ保持する。
+        extra: null,
         // totalSteps/stepOffset: ページをまたぐチュートリアル(例: 商品一覧の
         // 1ステップ→商品詳細の3ステップ)全体を通した「n / 合計」表示のための値。
         // 省略時はそのページのsteps配列だけを基準にする(従来通り)。
@@ -356,6 +364,9 @@
         // 表示用の分子・分母は、ページをまたぐ全体の通し番号(totalSteps/stepOffset)
         // が渡されていればそちらを優先する。渡されていなければ従来通り
         // このページのsteps配列だけを基準にする。
+        // totalStepsには数値だけでなく、合計ステップ数がまだ確定していないことを
+        // 示す '?' という文字列も渡せる(例:"5 / ?")。第3-C以降で最終的な
+        // ステップ数が固まるまで、途中の数値を決め打ちしないための仕組み。
         var displayTotal = state.totalSteps || localTotal;
         var displayIndex = state.stepIndex + state.stepOffset + 1;
         tooltipStepLabelEl.textContent = displayIndex + ' / ' + displayTotal;
@@ -410,7 +421,20 @@
                 }
                 positionAround(el);
                 updateTooltipContent();
-                saveProgress(state.tutorialKey, { stepIndex: state.stepIndex, route: step.route || null });
+                // route/extraはステップごとではなく、start()呼び出し時に渡された
+                // ツアー全体の値(state.route/state.extra)を使う。以前はstep.routeを
+                // 見ていたため、ステップが表示されるたびにroute:nullで上書きされ、
+                // browser back→forwardで戻ってきたときに再開できなくなる
+                // 不具合があった(第3-B監査で発見)。
+                var progressToSave = { stepIndex: state.stepIndex, route: state.route };
+                if (state.extra) {
+                    for (var extraKey in state.extra) {
+                        if (Object.prototype.hasOwnProperty.call(state.extra, extraKey)) {
+                            progressToSave[extraKey] = state.extra[extraKey];
+                        }
+                    }
+                }
+                saveProgress(state.tutorialKey, progressToSave);
 
                 // 開始時と同様、ステップが変わるたびに「次へ/完了」ボタンへ
                 // フォーカスを移す。対象要素はフォーカストラップの対象外なので、
@@ -485,6 +509,8 @@
         state.tutorialKey = null;
         state.steps = [];
         state.stepIndex = 0;
+        state.route = null;
+        state.extra = null;
         state.totalSteps = 0;
         state.stepOffset = 0;
         state.triggerElement = null;
@@ -510,15 +536,19 @@
     /**
      * チュートリアルを開始する。
      *
-     * @param {Array<{target: string, description: string, route?: string}>} steps
+     * @param {Array<{target: string, description: string}>} steps
      *   target は対象要素の data-demo-tutorial 属性値。
-     *   route は、ページをまたぐチュートリアルで次のページ再開時に使う目印
-     *   (省略可)。
      * @param {Object} options
      * @param {string} options.tutorialKey 'buyer' や 'farmer' など、既読管理の識別子。
+     * @param {string} [options.route] このツアーが動いているページを表す短い文字列
+     *   (例: 'products.show')。ページをまたいで再開してよいかどうかの判定に
+     *   使うため、sessionStorageの進行状況へそのまま保存される。
+     * @param {Object} [options.extra] routeだけでは表現しきれない追加の目印
+     *   (例: {reason: 'post-auth'})。指定した場合、進行状況に一緒に保存される。
      * @param {HTMLElement} [options.triggerElement] 呼び出し元の要素(終了時にフォーカスを戻す対象)。
      * @param {number} [options.startAtStep] 途中から再開する場合の開始ステップ番号(0始まり)。
-     * @param {number} [options.totalSteps] ページをまたぐ全体のステップ数(表示用)。省略時はsteps.length。
+     * @param {number|string} [options.totalSteps] ページをまたぐ全体のステップ数(表示用)。
+     *   省略時はsteps.length。まだ確定していない場合は '?' を渡せる(例:"5 / ?")。
      * @param {number} [options.stepOffset] このページのステップが全体の何番目から始まるか(0始まり、表示用)。
      * @param {Function} [options.onFinish] 終了時に呼ばれるコールバック。
      */
@@ -539,6 +569,8 @@
         state.tutorialKey = options.tutorialKey || 'default';
         state.steps = steps;
         state.stepIndex = options.startAtStep && options.startAtStep < steps.length ? options.startAtStep : 0;
+        state.route = options.route || null;
+        state.extra = options.extra || null;
         state.totalSteps = options.totalSteps || 0;
         state.stepOffset = options.stepOffset || 0;
         state.triggerElement = options.triggerElement || null;
@@ -565,6 +597,34 @@
         return state.active;
     }
 
+    /**
+     * 現在表示しているステップの番号(0始まり、そのページのsteps配列内での
+     * ローカルな番号)。画面固有の接続コードが、「まだ最初のステップにいるか」
+     * のような判定をしたい場合(例: DOM変化を監視して自動でnext()を呼ぶが、
+     * 二重に呼んでしまわないようにする)に使う。
+     */
+    function currentStepIndex() {
+        return state.stepIndex;
+    }
+
+    /**
+     * bfcache(ブラウザの「戻る/進む」で、ページを再読み込みせずメモリ上の
+     * 状態をそのまま復元する仕組み)対策。
+     *
+     * ブラウザの戻る操作でこのページに復元されたとき、pageshowイベントの
+     * event.persisted が true になる。この場合、クリック時点のDOM
+     * (オーバーレイ・スポットライト・吹き出しが開いた状態)がそのまま
+     * 復元されてしまうことがあるため、いったんteardown()で見た目を
+     * 片付ける。teardown()はlocalStorage/sessionStorageの既読・進行状態には
+     * 一切触れないため、必要なら画面固有の接続コード側が、自分の
+     * pageshowリスナーでsessionStorageの進行状況を見て安全に再開できる。
+     */
+    window.addEventListener('pageshow', function (event) {
+        if (event.persisted && state.active) {
+            teardown();
+        }
+    });
+
     // ------------------------------------------------------------------
     // 公開API
     // ------------------------------------------------------------------
@@ -574,6 +634,7 @@
         back: back,
         close: close,
         isActive: isActive,
+        currentStepIndex: currentStepIndex,
         hasSeenTutorial: hasSeenTutorial,
         markTutorialSeen: markTutorialSeen,
         saveProgress: saveProgress,

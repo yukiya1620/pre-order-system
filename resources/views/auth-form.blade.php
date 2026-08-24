@@ -9,7 +9,17 @@
          data-sms-verify-url="{{ url('/api/v1/auth/sms/verify') }}"
          data-email-login-url="{{ url('/api/v1/auth/login') }}"
          data-buyer-home-url="{{ route('buyer.home') }}"
-         data-farmer-home-url="{{ route('farmer.home') }}">
+         data-farmer-home-url="{{ route('farmer.home') }}"
+         {{--
+             一般公開デモ専用: DEMO_MODE=true かつ config('demo.tutorial_buyer_phone')が
+             設定されている場合だけ、案内用の電話番号をdata属性経由でJSへ渡す。
+             値そのものをBlade・JSにハードコードせず、config経由の値をそのまま
+             出力するだけに留める。
+         --}}
+         @if (config('demo.enabled') && config('demo.tutorial_buyer_phone'))
+             data-demo-tutorial-buyer-phone="{{ config('demo.tutorial_buyer_phone') }}"
+         @endif
+    >
         <header class="auth-form-page__header">
             <h1 class="auth-form-page__title">{{ $mode === 'register' ? '会員登録' : 'ログイン' }}</h1>
         </header>
@@ -30,7 +40,7 @@
             </div>
 
             <div class="auth-step" data-step-name="phone" hidden>
-                <div class="field">
+                <div class="field" data-demo-tutorial="buyer-login-phone">
                     <label for="auth-phone">電話番号</label>
                     <input type="text" id="auth-phone" inputmode="numeric" maxlength="11" placeholder="09012345678">
                     <p class="field-hint">「0」から始まる10〜11桁の数字を、ハイフンなしで入力してください。</p>
@@ -68,7 +78,7 @@
 
             <div class="auth-step" data-step-name="code" hidden>
                 <p id="auth-code-sent-note" class="auth-form__note"></p>
-                <div class="field">
+                <div class="field" data-demo-tutorial="buyer-login-code">
                     <label for="auth-code">認証コード(6桁)</label>
                     <input type="text" id="auth-code" inputmode="numeric" maxlength="6">
                     <p id="auth-code-error" class="field-error" hidden></p>
@@ -114,4 +124,12 @@
 
 @push('scripts')
     <script src="{{ asset('js/auth-form.js') }}" defer></script>
+    {{--
+        ログイン画面のチュートリアル接続コード(電話番号・認証コード入力欄の
+        案内、購入者チュートリアルの引き継ぎ)。共通基盤(demo-tutorial.js)や
+        認証処理(auth-form.js)には手を入れず、この画面専用のファイルとして分離する。
+    --}}
+    @if (config('demo.enabled'))
+        <script src="{{ asset('js/auth-form-tutorial.js') }}" defer></script>
+    @endif
 @endpush

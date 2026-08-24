@@ -113,7 +113,9 @@ class ProductDetailTutorialTest extends TestCase
         $this->assertStringContainsString("target: 'buyer-delivery-date'", $js);
         $this->assertStringContainsString("target: 'buyer-quantity'", $js);
         $this->assertStringContainsString("target: 'buyer-order-button'", $js);
-        $this->assertStringContainsString('TOTAL_STEPS = 4', $js);
+        // 第3-Bにより、合計ステップ数はまだ確定していない旨を示す '?' 表示に
+        // なった(第3-Cで注文確認・注文完了が接続されるまでの暫定仕様)。
+        $this->assertStringContainsString("TOTAL_STEPS = '?'", $js);
         $this->assertStringContainsString('STEP_OFFSET = 1', $js);
     }
 
@@ -152,7 +154,7 @@ class ProductDetailTutorialTest extends TestCase
         $js = file_get_contents(public_path('js/buyer-home-tutorial.js'));
 
         $this->assertStringContainsString("saveProgress('buyer', { stepIndex: 0, route: 'products.show' })", $js);
-        $this->assertStringContainsString('TOTAL_STEPS = 4', $js);
+        $this->assertStringContainsString("TOTAL_STEPS = '?'", $js);
         // 実際にpreventDefault()を呼び出すコードが無いこと(遷移そのものを
         // 妨げていないこと)を確認する。設計意図を説明するコメント文中の
         // 単語とは区別するため、呼び出し構文の形で検索する。

@@ -1,0 +1,178 @@
+<?php
+
+namespace Tests\Feature;
+
+use Tests\TestCase;
+
+/**
+ * ログイン画面(login)への操作チュートリアル接続(第3-B)を確認する。
+ * ログイン画面そのものの認証処理は既存のAuthFormPageTest・SmsAuthApiTest等が
+ * カバーしているため、ここではチュートリアル関連の出し分け・data属性・
+ * デモ電話番号案内・接続コードの中身だけを確認する。
+ */
+class AuthFormTutorialTest extends TestCase
+{
+    public function test_tutorial_js_is_not_loaded_when_demo_mode_disabled(): void
+    {
+        config(['demo.enabled' => false]);
+
+        $response = $this->get('/login');
+
+        $response->assertOk();
+        $response->assertDontSee('js/auth-form-tutorial.js', false);
+    }
+
+    public function test_tutorial_js_is_loaded_when_demo_mode_enabled(): void
+    {
+        config(['demo.enabled' => true]);
+
+        $response = $this->get('/login');
+
+        $response->assertOk();
+        $response->assertSee('js/auth-form-tutorial.js', false);
+    }
+
+    /**
+     * data属性は前回確定した方針どおり、DEMO_MODEの値に関わらず常時出力する。
+     */
+    public function test_target_data_attributes_are_present_regardless_of_demo_mode(): void
+    {
+        config(['demo.enabled' => false]);
+
+        $response = $this->get('/login');
+
+        $response->assertOk();
+        $response->assertSee('data-demo-tutorial="buyer-login-phone"', false);
+        $response->assertSee('data-demo-tutorial="buyer-login-code"', false);
+    }
+
+    /**
+     * register画面にも同じdata属性が出る(共有Blade/JSのため)が、
+     * auth-form-tutorial.js自体はmode==='login'のときだけ動作する
+     * (JS内のガード条件で確認する。data属性そのものは常時出力でよい)。
+     */
+    public function test_register_page_also_has_data_attributes_but_tutorial_js_only_activates_for_login_mode(): void
+    {
+        config(['demo.enabled' => true]);
+
+        $response = $this->get('/register');
+
+        $response->assertOk();
+        $response->assertSee('data-demo-tutorial="buyer-login-phone"', false);
+        $response->assertSee('js/auth-form-tutorial.js', false);
+
+        $js = file_get_contents(public_path('js/auth-form-tutorial.js'));
+        $this->assertStringContainsString("container.dataset.mode !== 'login'", $js);
+    }
+
+    /**
+     * デモ用電話番号の案内は、DEMO_MODE=trueかつconfig('demo.tutorial_buyer_phone')
+     * が設定されている場合だけ出力され、値そのものは常に config 経由で取得する
+     * (Blade・JSへのハードコードがないことも合わせて確認する)。
+     */
+    public function test_demo_tutorial_buyer_phone_is_shown_only_when_configured_and_demo_mode_enabled(): void
+    {
+        config(['demo.enabled' => true, 'demo.tutorial_buyer_phone' => '00000000001']);
+
+        $response = $this->get('/login');
+
+        $response->assertOk();
+        $response->assertSee('data-demo-tutorial-buyer-phone="00000000001"', false);
+    }
+
+    public function test_demo_tutorial_buyer_phone_is_not_shown_when_demo_mode_disabled(): void
+    {
+        config(['demo.enabled' => false, 'demo.tutorial_buyer_phone' => '00000000001']);
+
+        $response = $this->get('/login');
+
+        $response->assertOk();
+        $response->assertDontSee('data-demo-tutorial-buyer-phone', false);
+    }
+
+    public function test_demo_tutorial_buyer_phone_is_not_shown_when_not_configured(): void
+    {
+        config(['demo.enabled' => true, 'demo.tutorial_buyer_phone' => null]);
+
+        $response = $this->get('/login');
+
+        $response->assertOk();
+        $response->assertDontSee('data-demo-tutorial-buyer-phone', false);
+    }
+
+    /**
+     * ステップ定義・ページ横断の設計は、JS内で完結しているため、
+     * 既存のF9パターン(file_get_contents + assertStringContainsString)で確認する。
+     */
+    public function test_auth_form_tutorial_js_defines_two_steps_with_correct_offset(): void
+    {
+        $js = file_get_contents(public_path('js/auth-form-tutorial.js'));
+
+        $this->assertStringContainsString("target: 'buyer-login-phone'", $js);
+        $this->assertStringContainsString("target: 'buyer-login-code'", $js);
+        $this->assertStringContainsString("TOTAL_STEPS = '?'", $js);
+        $this->assertStringContainsString('STEP_OFFSET = 4', $js);
+    }
+
+    /**
+     * 直接アクセス(sessionStorageに進行状態が無い、または他ページ向けの進行状態)
+     * では自動開始しないことを、実装のガード条件として確認する。
+     */
+    public function test_auth_form_tutorial_js_only_resumes_with_matching_route_progress(): void
+    {
+        $js = file_get_contents(public_path('js/auth-form-tutorial.js'));
+
+        $this->assertStringContainsString("loadProgress('buyer')", $js);
+        $this->assertStringContainsString("progress.route !== 'login'", $js);
+    }
+
+    /**
+     * 認証処理(auth-form.js・SmsAuthController等)は一切変更していないことを
+     * 前提に、実際の画面のステップ切り替え(hidden属性)をMutationObserverで
+     * 外部から観測し、チュートリアルを自動的に追従させる設計になっていることを確認する。
+     */
+    public function test_auth_form_tutorial_js_follows_screen_step_changes_without_modifying_auth_form_js(): void
+    {
+        $tutorialJs = file_get_contents(public_path('js/auth-form-tutorial.js'));
+        $authFormJs = file_get_contents(public_path('js/auth-form.js'));
+
+        $this->assertStringContainsString('MutationObserver', $tutorialJs);
+        $this->assertStringContainsString("dataset.stepName === 'code'", $tutorialJs);
+        $this->assertStringContainsString('currentStepIndex()', $tutorialJs);
+
+        // auth-form.js側にチュートリアル関連のコードが混ざっていないことも確認する。
+        $this->assertStringNotContainsString('DemoTutorial', $authFormJs);
+        $this->assertStringNotContainsString('MutationObserver', $authFormJs);
+    }
+
+    /**
+     * 「認証する」ボタンが押された時点で、buyer.home側の専用案内
+     * (認証直後の再開案内)を予約することを確認する。認証成功後の
+     * リダイレクト先(redirectAfterAuth)自体には触れていないことも確認する。
+     */
+    public function test_auth_form_tutorial_js_reserves_post_auth_progress_on_verify_click(): void
+    {
+        $tutorialJs = file_get_contents(public_path('js/auth-form-tutorial.js'));
+        $authFormJs = file_get_contents(public_path('js/auth-form.js'));
+
+        $this->assertStringContainsString('auth-verify-button', $tutorialJs);
+        $this->assertStringContainsString("saveProgress('buyer', { stepIndex: 0, route: 'buyer.home', reason: 'post-auth' })", $tutorialJs);
+
+        // 認証成功後のリダイレクト処理(redirectAfterAuth)は変更していないことを確認する。
+        $this->assertStringContainsString('function redirectAfterAuth(user)', $authFormJs);
+        $this->assertStringContainsString('window.location.href = (user.role === \'farmer\') ? farmerHomeUrl : buyerHomeUrl;', $authFormJs);
+    }
+
+    /**
+     * bfcache(ブラウザの戻る操作でページを再読み込みせず復元する仕組み)から
+     * 復元された場合に備えて、pageshowイベントで再開判定をやり直す設計に
+     * なっていることを確認する。
+     */
+    public function test_auth_form_tutorial_js_resumes_on_bfcache_restore(): void
+    {
+        $js = file_get_contents(public_path('js/auth-form-tutorial.js'));
+
+        $this->assertStringContainsString("addEventListener('pageshow'", $js);
+        $this->assertStringContainsString('event.persisted', $js);
+    }
+}

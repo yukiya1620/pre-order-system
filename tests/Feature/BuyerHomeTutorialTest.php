@@ -66,4 +66,59 @@ class BuyerHomeTutorialTest extends TestCase
         $this->assertStringContainsString("tutorialKey: 'buyer'", $js);
         $this->assertStringContainsString('demo-tutorial:buyer-products-rendered', $js);
     }
+
+    /**
+     * 第3-B: 合計ステップ数は第3-Cが接続されるまで確定しないため、
+     * 具体的な数値ではなく '?' を表示する設計になっていることを確認する。
+     */
+    public function test_buyer_home_tutorial_js_shows_undetermined_total_steps(): void
+    {
+        $js = file_get_contents(public_path('js/buyer-home-tutorial.js'));
+
+        $this->assertStringContainsString("TOTAL_STEPS = '?'", $js);
+    }
+
+    /**
+     * 認証成功後にbuyer.homeへ戻ったときの専用案内(「もう一度、注文したい
+     * 商品を選んでみましょう」)が、通常のステップ1(使い方を見るボタンで
+     * 手動開始)とは別のsessionStorage予約(route==='buyer.home' かつ
+     * reason==='post-auth')で区別されていることを確認する。
+     */
+    public function test_buyer_home_tutorial_js_defines_separate_post_auth_step(): void
+    {
+        $js = file_get_contents(public_path('js/buyer-home-tutorial.js'));
+
+        $this->assertStringContainsString('ログインできました。もう一度、注文したい商品を選んでみましょう。', $js);
+        $this->assertStringContainsString("progress.route !== 'buyer.home' || progress.reason !== 'post-auth'", $js);
+        $this->assertStringContainsString('stepOffset: 6', $js);
+        // reasonはroute同様、ステップ表示のたびに上書きされないよう、
+        // 基盤のextraオプション経由で保存する(第3-B監査で見つかった
+        // route上書きバグの再発防止と同じ仕組みを使う)。
+        $this->assertStringContainsString("extra: { reason: 'post-auth' }", $js);
+    }
+
+    /**
+     * 認証直後の専用案内は、sessionStorageの予約があるだけでなく、
+     * 実際にログイン中であること(#buyer-home-logout-buttonの有無)も
+     * 併せて確認する設計になっていることを確認する。認証に失敗して
+     * このページへ来た場合に誤って専用案内が出ないようにするための安全策。
+     */
+    public function test_buyer_home_tutorial_js_checks_login_state_before_showing_post_auth_step(): void
+    {
+        $js = file_get_contents(public_path('js/buyer-home-tutorial.js'));
+
+        $this->assertStringContainsString("document.getElementById('buyer-home-logout-button')", $js);
+    }
+
+    /**
+     * bfcacheから復元された場合に備えて、pageshowイベントで
+     * 認証直後案内の再開判定をやり直す設計になっていることを確認する。
+     */
+    public function test_buyer_home_tutorial_js_resumes_on_bfcache_restore(): void
+    {
+        $js = file_get_contents(public_path('js/buyer-home-tutorial.js'));
+
+        $this->assertStringContainsString("addEventListener('pageshow'", $js);
+        $this->assertStringContainsString('event.persisted', $js);
+    }
 }

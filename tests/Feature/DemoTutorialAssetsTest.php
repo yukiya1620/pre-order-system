@@ -72,4 +72,64 @@ class DemoTutorialAssetsTest extends TestCase
         $this->assertFileExists(public_path('css/demo-tutorial.css'));
         $this->assertFileExists(public_path('js/demo-tutorial.js'));
     }
+
+    /**
+     * 第3-B: bfcache(ブラウザの戻る操作でページを再読み込みせず復元する仕組み)
+     * から復元された場合、開いたままのオーバーレイ・スポットライト・吹き出しを
+     * そのまま表示し続けず、いったん片付ける設計になっていることを確認する。
+     */
+    public function test_demo_tutorial_js_resets_ui_on_bfcache_restore(): void
+    {
+        $js = file_get_contents(public_path('js/demo-tutorial.js'));
+
+        $this->assertStringContainsString("addEventListener('pageshow'", $js);
+        $this->assertStringContainsString('event.persisted', $js);
+        $this->assertStringContainsString('teardown()', $js);
+    }
+
+    /**
+     * 総ステップ数がまだ確定していないことを示す '?' 表示を受け付ける
+     * (数値をtotalStepsへ決め打ちしなくてよい)設計になっていることを確認する。
+     */
+    public function test_demo_tutorial_js_accepts_undetermined_total_steps(): void
+    {
+        $js = file_get_contents(public_path('js/demo-tutorial.js'));
+
+        $this->assertStringContainsString("displayTotal = state.totalSteps || localTotal", $js);
+    }
+
+    /**
+     * 第3-B監査中に発見した不具合の再発防止テスト。
+     *
+     * 以前は、ステップが切り替わるたびに実行するsaveProgressが
+     * `route: step.route || null` を見ていたため、各ステップのstep定義に
+     * routeを設定していない場合、1ステップでも表示された時点で
+     * sessionStorageのrouteがnullに上書きされてしまい、ブラウザの
+     * 「戻る→進む」で元のページに戻ってきても再開できなくなっていた。
+     *
+     * 修正後は、start()呼び出し時にoptions.routeとして渡された値
+     * (state.route)をツアー全体で保持し、ステップが変わってもroute自体は
+     * 上書きされない設計になっている。
+     */
+    public function test_demo_tutorial_js_preserves_route_across_step_changes(): void
+    {
+        $js = file_get_contents(public_path('js/demo-tutorial.js'));
+
+        $this->assertStringContainsString('state.route = options.route || null;', $js);
+        $this->assertStringContainsString('route: state.route', $js);
+        // 修正前のバグの原因だった書き方が残っていないことも確認する。
+        $this->assertStringNotContainsString('route: step.route', $js);
+    }
+
+    /**
+     * routeだけでは表現しきれない追加の目印(reason等)も、同様にステップが
+     * 変わっても保持され続けることを確認する(認証成功後のbuyer.home専用案内で使用)。
+     */
+    public function test_demo_tutorial_js_preserves_extra_data_across_step_changes(): void
+    {
+        $js = file_get_contents(public_path('js/demo-tutorial.js'));
+
+        $this->assertStringContainsString('state.extra = options.extra || null;', $js);
+        $this->assertStringContainsString('progressToSave[extraKey] = state.extra[extraKey];', $js);
+    }
 }

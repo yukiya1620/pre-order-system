@@ -6,19 +6,131 @@
  * 一切手を加えず、この画面のステップ定義と「使い方を見る」ボタンの
  * 制御だけをここに閉じ込める。
  *
- * 第3-A(今回)の範囲: 商品一覧(1ステップ)→商品詳細(3ステップ)の
- * ページ横断まで。ログイン・SMS認証・注文確認・注文完了への接続は次段階以降。
+ * 第3-B(今回)の範囲: 商品一覧(1ステップ)→商品詳細(3ステップ)→
+ * ログイン(2ステップ)のページ横断に加えて、認証成功後にbuyer.homeへ
+ * 戻ってきたときの専用案内(「もう一度商品を選びましょう」)まで。
+ * orders.confirm・注文確定・注文完了への接続はまだ第3-Cで行う。
  */
 (function () {
-    var startButton = document.getElementById('buyer-home-tutorial-start-button');
-    if (!startButton || !window.DemoTutorial) {
+    if (!window.DemoTutorial) {
         return;
     }
 
-    // 購入者チュートリアル全体の通し番号表示("n / 4")に使う合計ステップ数。
-    // 商品一覧1ステップ + 商品詳細3ステップ(public/js/product-detail-tutorial.js)。
-    // モジュールバンドラを使わない構成のため、値は各ファイルに個別に持たせている。
-    var TOTAL_STEPS = 4;
+    // 購入者チュートリアル全体の通し番号表示に使う値。第3-Cで注文確認・
+    // 注文完了のステップが加わるまで、合計ステップ数はまだ確定していないため、
+    // 具体的な数値を決め打ちせず '?' を表示する(例:"1 / ?")。
+    var TOTAL_STEPS = '?';
+
+    // 商品カードは public/js/buyer-home.js がAPIレスポンスをもとに
+    // 動的に生成する。カードの描画が終わるまでは data-demo-tutorial 属性を
+    // 持つ要素が存在しないため、buyer-home.js が描画完了時に発火する
+    // カスタムイベント(demo-tutorial:buyer-products-rendered)を合図にする。
+    // setTimeoutの秒数決め打ちに頼らない、疎結合な連携方法。
+    var productsReady = false;
+
+    document.addEventListener('demo-tutorial:buyer-products-rendered', function onProductsRendered() {
+        productsReady = true;
+        if (pendingStart) {
+            pendingStart = false;
+            if (readyTimeoutId !== null) {
+                window.clearTimeout(readyTimeoutId);
+                readyTimeoutId = null;
+            }
+            beginTutorial();
+        }
+        if (postAuthPending) {
+            postAuthPending = false;
+            beginPostAuthTutorial();
+        }
+    });
+
+    // ------------------------------------------------------------------
+    // 認証成功後の専用案内(「もう一度、注文したい商品を選んでみましょう」)
+    // ------------------------------------------------------------------
+    //
+    // 第3-B監査の結論により、認証(SMSコード確認)に成功すると常にbuyer.home
+    // (商品一覧)へ戻る現在の仕様(auth-form.jsのredirectAfterAuth)は変更しない。
+    // また、認証前に選んでいた商品・配達日・数量はURLクエリ文字列のみに
+    // 保持されており、ログイン画面をまたぐと失われる現在の仕様も変更しない。
+    // そのためログイン後は、通常の「使い方を見る」ボタンによるステップ1とは
+    // 別の専用ステップとして、もう一度商品を選ぶよう案内する。
+    //
+    // 「認証後専用」であることの判定は、次の2つを両方満たす場合だけに絞る。
+    //   1. sessionStorageに { route: 'buyer.home', reason: 'post-auth' } の
+    //      予約がある(auth-form-tutorial.jsが「認証する」ボタン押下時に保存)
+    //   2. 実際にログイン中である(#buyer-home-logout-buttonの有無で判定。
+    //      buyer-home.blade.phpの@authブロックが出力する既存の要素をそのまま
+    //      利用するだけで、Blade自体は変更しない)
+    // 認証に失敗してこのページへ来た場合は2を満たさないため、専用案内は
+    // 表示されない。
+    var postAuthSteps = [
+        {
+            target: 'buyer-product-card',
+            description: 'ログインできました。もう一度、注文したい商品を選んでみましょう。'
+        }
+    ];
+
+    var postAuthActive = false;
+    var postAuthPending = false;
+
+    function beginPostAuthTutorial() {
+        postAuthActive = true;
+        window.DemoTutorial.start(postAuthSteps, {
+            tutorialKey: 'buyer',
+            route: 'buyer.home',
+            // reasonは進行状況に一緒に保存され、次に読み込むときも
+            // 「認証直後専用の案内である」ことを区別できる。
+            extra: { reason: 'post-auth' },
+            totalSteps: TOTAL_STEPS,
+            // 商品一覧1 + 商品詳細3 + ログイン2 = 6個の後に続く専用案内。
+            stepOffset: 6,
+            onFinish: function () {
+                postAuthActive = false;
+            }
+        });
+    }
+
+    /**
+     * sessionStorageの進行状況を見て、認証直後の専用案内を再開してよいか
+     * 判定する。ページの初回読み込み時に加えて、ブラウザの戻る操作で
+     * このページがbfcacheから復元された場合(pageshowイベント)にも呼び出す。
+     */
+    function tryResumePostAuth() {
+        if (window.DemoTutorial.isActive()) {
+            return;
+        }
+
+        var progress = window.DemoTutorial.loadProgress('buyer');
+        var isLoggedIn = !!document.getElementById('buyer-home-logout-button');
+
+        if (!progress || progress.route !== 'buyer.home' || progress.reason !== 'post-auth' || !isLoggedIn) {
+            return;
+        }
+
+        if (productsReady) {
+            beginPostAuthTutorial();
+        } else {
+            // 商品カードの描画がまだ終わっていない場合は、描画完了イベントを待つ。
+            postAuthPending = true;
+        }
+    }
+
+    tryResumePostAuth();
+
+    window.addEventListener('pageshow', function (event) {
+        if (event.persisted) {
+            tryResumePostAuth();
+        }
+    });
+
+    // ------------------------------------------------------------------
+    // 通常の「使い方を見る」ボタン(ステップ1: 商品一覧)
+    // ------------------------------------------------------------------
+
+    var startButton = document.getElementById('buyer-home-tutorial-start-button');
+    if (!startButton) {
+        return;
+    }
 
     var DEFAULT_BUTTON_LABEL = startButton.textContent;
 
@@ -34,26 +146,8 @@
     // 閲覧では一切関与しない)。
     var tutorialActive = false;
 
-    // 商品カードは public/js/buyer-home.js がAPIレスポンスをもとに
-    // 動的に生成する。カードの描画が終わるまでは data-demo-tutorial 属性を
-    // 持つ要素が存在しないため、buyer-home.js が描画完了時に発火する
-    // カスタムイベント(demo-tutorial:buyer-products-rendered)を合図にする。
-    // setTimeoutの秒数決め打ちに頼らない、疎結合な連携方法。
-    var productsReady = false;
     var pendingStart = false;
     var readyTimeoutId = null;
-
-    document.addEventListener('demo-tutorial:buyer-products-rendered', function onProductsRendered() {
-        productsReady = true;
-        if (pendingStart) {
-            pendingStart = false;
-            if (readyTimeoutId !== null) {
-                window.clearTimeout(readyTimeoutId);
-                readyTimeoutId = null;
-            }
-            beginTutorial();
-        }
-    });
 
     function resetButton() {
         startButton.disabled = false;
@@ -65,6 +159,7 @@
         tutorialActive = true;
         window.DemoTutorial.start(steps, {
             tutorialKey: 'buyer',
+            route: 'buyer.home',
             triggerElement: startButton,
             totalSteps: TOTAL_STEPS,
             stepOffset: 0,

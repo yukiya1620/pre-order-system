@@ -11,8 +11,9 @@
  * 自動的に続きを始める。sessionStorageに正しい進行状況(route==='products.show')
  * が無い場合(URLを直接開いた、他のリンクから来た等)は、何もしない。
  *
- * 第3-A(今回)の範囲: 配達希望日→数量→注文へ進む、の3ステップのみ。
- * ログイン・SMS認証・注文確認・注文完了への接続は次段階(第3-B)以降。
+ * 第3-B(今回)の範囲: 配達希望日→数量→注文へ進む、の3ステップに加えて、
+ * ログイン画面(auth-form-tutorial.js)への引き継ぎまで。
+ * orders.confirm・注文確定・注文完了への接続はまだ第3-Cで行う。
  * 注文へ進むボタン(またはログインリンク)が実際にクリックされた場合は、
  * このページの範囲でチュートリアルを片付ける(オーバーレイ・進行状態を残さない)。
  */
@@ -21,9 +22,10 @@
         return;
     }
 
-    // 購入者チュートリアル全体の通し番号表示("n / 4")に使う値。
-    // 商品一覧側(buyer-home-tutorial.js)の合計値と揃えている。
-    var TOTAL_STEPS = 4;
+    // 購入者チュートリアル全体の通し番号表示に使う値。第3-Cで注文確認・
+    // 注文完了のステップが加わるまで、合計ステップ数はまだ確定していないため、
+    // 具体的な数値を決め打ちせず '?' を表示する(例:"2 / ?")。
+    var TOTAL_STEPS = '?';
     // 商品一覧に1ステップあるため、このページのステップは全体の2番目から始まる。
     var STEP_OFFSET = 1;
 
@@ -42,34 +44,66 @@
         }
     ];
 
-    var progress = window.DemoTutorial.loadProgress('buyer');
-    if (!progress || progress.route !== 'products.show') {
-        // buyer.homeのチュートリアルから正しく遷移してきた形跡が無いため、
-        // 直接アクセス等とみなして、自動的には開始しない。
-        return;
+    var tutorialActive = false;
+
+    /**
+     * sessionStorageの進行状況を見て、必要なら続きを開始する。
+     * ページの初回読み込み時に加えて、ブラウザの戻る操作でこのページが
+     * bfcacheから復元された場合(pageshowイベント、event.persisted===true)にも
+     * 呼び出す。基盤(demo-tutorial.js)側のpageshowリスナーが、復元時に
+     * 古いオーバーレイをいったん片付けてくれるため、ここでは
+     * 「もう一度、今の状況に応じて開始し直してよいか」だけを判定すればよい。
+     */
+    function tryResume() {
+        if (window.DemoTutorial.isActive()) {
+            // 既に何らかのツアーが表示中なら(例えば基盤がまだ片付け切っていない
+            // 一瞬の間など)、二重に開始しない。
+            return;
+        }
+
+        var progress = window.DemoTutorial.loadProgress('buyer');
+        if (!progress || progress.route !== 'products.show') {
+            // buyer.homeのチュートリアルから正しく遷移してきた形跡が無いため、
+            // 直接アクセス等とみなして、自動的には開始しない。
+            return;
+        }
+
+        var startAtStep = typeof progress.stepIndex === 'number' ? progress.stepIndex : 0;
+
+        tutorialActive = true;
+        window.DemoTutorial.start(steps, {
+            tutorialKey: 'buyer',
+            route: 'products.show',
+            startAtStep: startAtStep,
+            totalSteps: TOTAL_STEPS,
+            stepOffset: STEP_OFFSET,
+            onFinish: function () {
+                tutorialActive = false;
+            }
+        });
     }
 
-    var startAtStep = typeof progress.stepIndex === 'number' ? progress.stepIndex : 0;
+    tryResume();
 
-    var tutorialActive = true;
-
-    window.DemoTutorial.start(steps, {
-        tutorialKey: 'buyer',
-        startAtStep: startAtStep,
-        totalSteps: TOTAL_STEPS,
-        stepOffset: STEP_OFFSET,
-        onFinish: function () {
-            tutorialActive = false;
+    window.addEventListener('pageshow', function (event) {
+        if (event.persisted) {
+            tryResume();
         }
     });
 
     /**
      * ステップ4(注文へ進む/ログインする)の対象が実際にクリックされた場合、
      * ページがこの後すぐ遷移する(注文確認画面、またはログイン画面)。
-     * 遷移先の画面ではまだチュートリアルを再開しない設計(第3-Bで対応予定)
-     * のため、遷移前にオーバーレイ・進行状態をきちんと片付けておく。
+     * 遷移前にオーバーレイ・進行状態をきちんと片付けておく。
      * 実際のクリック処理(注文確認画面へのURL遷移、ログイン画面への遷移)は
      * product-detail.js側の処理・通常のリンク遷移のままで、ここでは妨げない。
+     *
+     * ログインリンク(<a>)の場合だけ、ログイン画面(auth-form-tutorial.js)で
+     * チュートリアルを再開できるよう、新しい進行状況を保存し直す。
+     * ログイン済みで注文ボタン(<button>)を押した場合(orders.confirmへ進む
+     * 場合)は、ログイン画面を経由しないためこの保存は行わない
+     * (route要素をtagNameで区別する。data-demo-tutorial属性はどちらにも
+     * 付与されているため、遷移先の区別にはDOM構造の違いを使う)。
      */
     document.addEventListener('click', function (event) {
         if (!tutorialActive) {
@@ -81,6 +115,12 @@
             return;
         }
 
+        var isLoginLink = target.tagName === 'A';
+
         window.DemoTutorial.close();
+
+        if (isLoginLink) {
+            window.DemoTutorial.saveProgress('buyer', { stepIndex: 0, route: 'login' });
+        }
     }, true);
 })();
