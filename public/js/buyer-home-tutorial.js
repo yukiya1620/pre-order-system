@@ -6,14 +6,19 @@
  * 一切手を加えず、この画面のステップ定義と「使い方を見る」ボタンの
  * 制御だけをここに閉じ込める。
  *
- * 第2段階(今回)の範囲: 商品一覧の1ステップのみ。
- * 商品詳細・ログイン・注文確認・注文完了へのページ横断は次段階以降。
+ * 第3-A(今回)の範囲: 商品一覧(1ステップ)→商品詳細(3ステップ)の
+ * ページ横断まで。ログイン・SMS認証・注文確認・注文完了への接続は次段階以降。
  */
 (function () {
     var startButton = document.getElementById('buyer-home-tutorial-start-button');
     if (!startButton || !window.DemoTutorial) {
         return;
     }
+
+    // 購入者チュートリアル全体の通し番号表示("n / 4")に使う合計ステップ数。
+    // 商品一覧1ステップ + 商品詳細3ステップ(public/js/product-detail-tutorial.js)。
+    // モジュールバンドラを使わない構成のため、値は各ファイルに個別に持たせている。
+    var TOTAL_STEPS = 4;
 
     var DEFAULT_BUTTON_LABEL = startButton.textContent;
 
@@ -23,6 +28,11 @@
             description: 'まずは気になる商品を選んでみましょう。商品を選ぶと、詳しい内容や配達希望日を確認できます。'
         }
     ];
+
+    // このステップがアクティブな間だけ、商品カードのリンクが実際にクリック
+    // されたことを検知できるようにする(チュートリアルを開いていない通常の
+    // 閲覧では一切関与しない)。
+    var tutorialActive = false;
 
     // 商品カードは public/js/buyer-home.js がAPIレスポンスをもとに
     // 動的に生成する。カードの描画が終わるまでは data-demo-tutorial 属性を
@@ -52,11 +62,47 @@
 
     function beginTutorial() {
         resetButton();
+        tutorialActive = true;
         window.DemoTutorial.start(steps, {
             tutorialKey: 'buyer',
-            triggerElement: startButton
+            triggerElement: startButton,
+            totalSteps: TOTAL_STEPS,
+            stepOffset: 0,
+            onFinish: function () {
+                tutorialActive = false;
+            }
         });
     }
+
+    /**
+     * ステップ1が表示されている間に、実際に商品カードのリンクがクリック
+     * されたら、商品詳細(products.show)側でステップ2から自然に続けられる
+     * よう、遷移前に進行状況を保存しておく。
+     *
+     * 重要: ここではリンクの遷移そのもの(既存のhref・ブラウザの標準的な
+     * ページ遷移)には一切手を加えない。preventDefault等は行わず、
+     * 「遷移する前に一言メモを残すだけ」の副作用に留める。
+     * チュートリアルを開いていない場合(tutorialActive === false)は
+     * 何もしない。
+     */
+    document.addEventListener('click', function (event) {
+        if (!tutorialActive) {
+            return;
+        }
+
+        var link = event.target.closest('.product-card__detail-link');
+        if (!link) {
+            return;
+        }
+
+        var card = link.closest('[data-demo-tutorial="buyer-product-card"]');
+        if (!card) {
+            return;
+        }
+
+        // products.show側のローカルなステップ配列における開始位置(0=配達希望日)。
+        window.DemoTutorial.saveProgress('buyer', { stepIndex: 0, route: 'products.show' });
+    }, true);
 
     startButton.addEventListener('click', function () {
         if (startButton.disabled) {

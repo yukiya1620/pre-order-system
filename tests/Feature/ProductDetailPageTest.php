@@ -133,7 +133,8 @@ class ProductDetailPageTest extends TestCase
         $response = $this->actingAs($buyer)->get('/products/'.$sale->id);
 
         $response->assertOk();
-        $response->assertSee('id="product-detail-order-button" class="product-detail__order-button">この内容で注文する', false);
+        $response->assertSee('id="product-detail-order-button"', false);
+        $response->assertSee('この内容で注文する', false);
     }
 
     public function test_page_embeds_order_confirm_base_url(): void

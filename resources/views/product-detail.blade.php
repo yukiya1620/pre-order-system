@@ -25,7 +25,7 @@
             <p class="product-detail__order-period">📅 注文受付期間：<span id="product-detail-order-period"></span></p>
             <p class="product-detail__delivery">🚚 配達予定 <span id="product-detail-delivery-date"></span></p>
 
-            <div class="field" id="product-detail-delivery-date-field" hidden>
+            <div class="field" id="product-detail-delivery-date-field" hidden data-demo-tutorial="buyer-delivery-date">
                 <label for="product-detail-delivery-date-select">配達予定日を選ぶ</label>
                 <select id="product-detail-delivery-date-select" required></select>
             </div>
@@ -33,7 +33,7 @@
             <p id="product-detail-delivery-note" class="product-detail__delivery-note"></p>
             <p id="product-detail-description" class="product-detail__description"></p>
 
-            <div class="field">
+            <div class="field" data-demo-tutorial="buyer-quantity">
                 <label for="product-detail-quantity">数量</label>
                 <input type="number" id="product-detail-quantity" min="1" value="1">
             </div>
@@ -49,10 +49,10 @@
 
             @guest
                 <p class="product-detail__login-prompt">
-                    ご注文にはログインが必要です。<a href="{{ route('login') }}">ログインする ▶</a>
+                    ご注文にはログインが必要です。<a href="{{ route('login') }}" data-demo-tutorial="buyer-order-button">ログインする ▶</a>
                 </p>
             @else
-                <button type="button" id="product-detail-order-button" class="product-detail__order-button">この内容で注文する</button>
+                <button type="button" id="product-detail-order-button" class="product-detail__order-button" data-demo-tutorial="buyer-order-button">この内容で注文する</button>
             @endguest
         </div>
     </div>
@@ -60,4 +60,12 @@
 
 @push('scripts')
     <script src="{{ asset('js/product-detail.js') }}" defer></script>
+    {{--
+        商品詳細のチュートリアル接続コード(ステップ定義・buyer.homeからの
+        再開判定)。共通基盤(demo-tutorial.js)や商品表示・注文処理
+        (product-detail.js)には手を入れず、この画面専用のファイルとして分離する。
+    --}}
+    @if (config('demo.enabled'))
+        <script src="{{ asset('js/product-detail-tutorial.js') }}" defer></script>
+    @endif
 @endpush

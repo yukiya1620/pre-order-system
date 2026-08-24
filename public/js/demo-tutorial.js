@@ -116,6 +116,11 @@
         tutorialKey: null,
         steps: [],
         stepIndex: 0,
+        // totalSteps/stepOffset: ページをまたぐチュートリアル(例: 商品一覧の
+        // 1ステップ→商品詳細の3ステップ)全体を通した「n / 合計」表示のための値。
+        // 省略時はそのページのsteps配列だけを基準にする(従来通り)。
+        totalSteps: 0,
+        stepOffset: 0,
         triggerElement: null,
         onFinish: null
     };
@@ -209,15 +214,27 @@
     }
 
     /**
-     * data-demo-tutorial="<target>" を持つ要素を探す。
+     * 対象がその場に存在しても、hidden属性やdisplay:noneで隠れている場合
+     * (例: 配達予定日の選択が不要な商品では配達日欄が非表示のまま)は、
+     * 「まだ用意できていない」のと同じ扱いにする。offsetWidth/offsetHeightは
+     * 非表示要素だと0になることを利用した、追加ライブラリ不要の簡易判定。
+     */
+    function isVisible(el) {
+        return !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+    }
+
+    /**
+     * data-demo-tutorial="<target>" を持つ、かつ表示されている要素を探す。
      * 商品カードのようにJavaScriptがAPIレスポンスをもとに後から生成する
      * 要素の場合、ページ読み込み直後にはまだ存在しないことがあるため、
      * 見つからなければ短い間隔で数回だけ再試行し、それでも見つからなければ
      * そのステップは諦めて次へ進む(チュートリアル全体は継続する)。
+     * その商品では最初から表示されない項目(配達日選択欄など)も、この
+     * リトライの末にスキップされる形で自然に無視される。
      */
     function findTargetElement(target, attempt, done) {
         var el = document.querySelector('[data-demo-tutorial="' + target + '"]');
-        if (el) {
+        if (el && isVisible(el)) {
             done(el);
             return;
         }
@@ -335,13 +352,18 @@
             return;
         }
 
-        var total = state.steps.length;
-        tooltipStepLabelEl.textContent = (state.stepIndex + 1) + ' / ' + total;
+        var localTotal = state.steps.length;
+        // 表示用の分子・分母は、ページをまたぐ全体の通し番号(totalSteps/stepOffset)
+        // が渡されていればそちらを優先する。渡されていなければ従来通り
+        // このページのsteps配列だけを基準にする。
+        var displayTotal = state.totalSteps || localTotal;
+        var displayIndex = state.stepIndex + state.stepOffset + 1;
+        tooltipStepLabelEl.textContent = displayIndex + ' / ' + displayTotal;
         tooltipDescEl.textContent = step.description || '';
 
         backButtonEl.hidden = state.stepIndex === 0;
 
-        var isLast = state.stepIndex === total - 1;
+        var isLast = state.stepIndex === localTotal - 1;
         nextButtonEl.textContent = isLast ? '完了' : '次へ ▶';
     }
 
@@ -463,6 +485,8 @@
         state.tutorialKey = null;
         state.steps = [];
         state.stepIndex = 0;
+        state.totalSteps = 0;
+        state.stepOffset = 0;
         state.triggerElement = null;
         state.onFinish = null;
 
@@ -494,6 +518,8 @@
      * @param {string} options.tutorialKey 'buyer' や 'farmer' など、既読管理の識別子。
      * @param {HTMLElement} [options.triggerElement] 呼び出し元の要素(終了時にフォーカスを戻す対象)。
      * @param {number} [options.startAtStep] 途中から再開する場合の開始ステップ番号(0始まり)。
+     * @param {number} [options.totalSteps] ページをまたぐ全体のステップ数(表示用)。省略時はsteps.length。
+     * @param {number} [options.stepOffset] このページのステップが全体の何番目から始まるか(0始まり、表示用)。
      * @param {Function} [options.onFinish] 終了時に呼ばれるコールバック。
      */
     function start(steps, options) {
@@ -513,6 +539,8 @@
         state.tutorialKey = options.tutorialKey || 'default';
         state.steps = steps;
         state.stepIndex = options.startAtStep && options.startAtStep < steps.length ? options.startAtStep : 0;
+        state.totalSteps = options.totalSteps || 0;
+        state.stepOffset = options.stepOffset || 0;
         state.triggerElement = options.triggerElement || null;
         state.onFinish = options.onFinish || null;
 
@@ -528,6 +556,15 @@
         showCurrentStep();
     }
 
+    /**
+     * 現在チュートリアルが表示中かどうか。画面固有の接続コード
+     * (buyer-home-tutorial.js等)が、「表示中に対象要素がクリックされたか」を
+     * 判定する際に使う。
+     */
+    function isActive() {
+        return state.active;
+    }
+
     // ------------------------------------------------------------------
     // 公開API
     // ------------------------------------------------------------------
@@ -536,8 +573,10 @@
         next: next,
         back: back,
         close: close,
+        isActive: isActive,
         hasSeenTutorial: hasSeenTutorial,
         markTutorialSeen: markTutorialSeen,
+        saveProgress: saveProgress,
         loadProgress: loadProgress,
         clearProgress: clearProgress
     };
