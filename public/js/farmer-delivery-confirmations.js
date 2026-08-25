@@ -110,25 +110,33 @@
         var card = document.createElement('div');
         card.className = 'confirmation-card';
 
+        // 一般公開デモの操作チュートリアル向けに、注文内容(日付・購入者・
+        // 商品・お届け先)だけをまとめたラッパー。回答ボタン群を含まない
+        // コンパクトな領域をスポットライト対象にできるようにするためだけの
+        // 変更で、見た目(app.cssのクラス・スタイル)や回答処理には影響しない。
+        var summaryEl = document.createElement('div');
+        summaryEl.className = 'confirmation-card__summary';
+        card.appendChild(summaryEl);
+
         var dateEl = document.createElement('p');
         dateEl.className = 'confirmation-card__date';
         dateEl.textContent = formatDeliveryDate(order.delivery_date) + 'に配達予定の注文';
-        card.appendChild(dateEl);
+        summaryEl.appendChild(dateEl);
 
         var buyerEl = document.createElement('p');
         buyerEl.className = 'confirmation-card__buyer';
         buyerEl.textContent = order.user.name + ' 様';
-        card.appendChild(buyerEl);
+        summaryEl.appendChild(buyerEl);
 
         var itemsEl = document.createElement('p');
         itemsEl.className = 'confirmation-card__items';
         itemsEl.textContent = items;
-        card.appendChild(itemsEl);
+        summaryEl.appendChild(itemsEl);
 
         var addressEl = document.createElement('p');
         addressEl.className = 'confirmation-card__address';
         addressEl.textContent = 'お届け先: ' + order.delivery_address;
-        card.appendChild(addressEl);
+        summaryEl.appendChild(addressEl);
 
         var questionEl = document.createElement('p');
         questionEl.className = 'confirmation-card__question';
@@ -236,9 +244,13 @@
                 var card = buildCard(confirmation);
                 // 一般公開デモの操作チュートリアル向けに、最初のカードだけ
                 // 対象の目印を付ける(buyer-home.jsの商品カードと同じ考え方)。
+                // 390px幅でtooltipが画面外にはみ出さないよう、カード全体
+                // (回答ボタン群を含む縦長の領域)ではなく、注文内容の
+                // まとめ(confirmation-card__summary)だけを対象にする。
                 // 回答ボタン等の既存動作には一切影響しない。
                 if (index === 0) {
-                    card.dataset.demoTutorial = 'farmer-delivery-confirmation-card';
+                    var summaryEl = card.querySelector('.confirmation-card__summary');
+                    summaryEl.dataset.demoTutorial = 'farmer-delivery-confirmation-card';
                 }
                 listEl.appendChild(card);
             });

@@ -107,15 +107,19 @@ class FarmerDeliveryConfirmationsTutorialTest extends TestCase
     /**
      * 配達のかくにんの表示処理(farmer-delivery-confirmations.js)は、
      * 既存の回答処理(submitResponse・API呼び出し)を変えず、
-     * カード描画完了時のカスタムイベント発火と、最初のカードへの
-     * data属性付与だけが追加されていることを確認する。
+     * カード描画完了時のカスタムイベント発火と、最初のカードの
+     * 注文内容まとめ(confirmation-card__summary、390px幅でtooltipが
+     * 画面外にはみ出さないよう、回答ボタン群を含まないコンパクトな
+     * 領域に絞ったスポットライト対象)へのdata属性付与だけが
+     * 追加されていることを確認する。
      */
     public function test_delivery_confirmations_js_only_adds_event_and_data_attribute(): void
     {
         $js = file_get_contents(public_path('js/farmer-delivery-confirmations.js'));
 
         $this->assertStringContainsString("new CustomEvent('demo-tutorial:farmer-delivery-confirmations-rendered')", $js);
-        $this->assertStringContainsString("card.dataset.demoTutorial = 'farmer-delivery-confirmation-card'", $js);
+        $this->assertStringContainsString("summaryEl.className = 'confirmation-card__summary'", $js);
+        $this->assertStringContainsString("summaryEl.dataset.demoTutorial = 'farmer-delivery-confirmation-card'", $js);
 
         // 既存の回答送信処理(respond API呼び出し)がそのまま残っていることを確認する。
         $this->assertStringContainsString("listUrl + '/' + id + '/respond'", $js);

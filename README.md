@@ -215,6 +215,8 @@ php artisan schedule:work
 
 このシステムを一般公開デモとして体験できる環境を `reservation-demo.kazeyui.com` に用意しています。公開デモ環境は `APP_ENV=production` かつ `DEMO_MODE=true` で動作し、`DatabaseSeeder`(`farmer@example.com`)は実行せず、`PortfolioDemoSeeder` のデータ(上記「ログイン情報」参照)のみが存在します。
 
+公開デモ環境には、購入者向け・販売者向けそれぞれの操作チュートリアル(画面上の吹き出し案内)を用意しており、初めての利用者でも画面の案内に沿って一通りの操作を体験できます。
+
 公開デモ環境の構築手順・環境変数・運用方法(Scheduler・`demo:reset` によるデータリセットなど)は [docs/demo-deployment.md](docs/demo-deployment.md) にまとめています。
 
 ## 本番環境での注意事項
