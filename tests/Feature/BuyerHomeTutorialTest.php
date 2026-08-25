@@ -166,4 +166,85 @@ class BuyerHomeTutorialTest extends TestCase
 
         $this->assertStringNotContainsString('isFinalPage', $js);
     }
+
+    /**
+     * 第4段階: 初回自動表示は、既に一度自動表示済み(hasAutoShownTutorial)なら
+     * 行わない設計になっていることを確認する。
+     */
+    public function test_buyer_home_tutorial_js_skips_auto_show_when_already_auto_shown(): void
+    {
+        $js = file_get_contents(public_path('js/buyer-home-tutorial.js'));
+
+        $this->assertStringContainsString("if (window.DemoTutorial.hasAutoShownTutorial('buyer')) {", $js);
+    }
+
+    /**
+     * 第4段階: 自動開始した「その瞬間」にauto_shownを保存することを確認する
+     * (Esc・×・途中離脱で完了しなくても、次回訪問時にまた勝手に始まらないため)。
+     * markAutoShownTutorialの呼び出しが、実際の開始処理(beginTutorial)より
+     * 前に書かれていることも確認する(開始前に「見せた」事実を確定させる意図)。
+     */
+    public function test_buyer_home_tutorial_js_marks_auto_shown_before_starting(): void
+    {
+        $js = file_get_contents(public_path('js/buyer-home-tutorial.js'));
+
+        $markPos = strpos($js, "markAutoShownTutorial('buyer')");
+        $beginAutoShowFnPos = strpos($js, 'function beginAutoShow()');
+        $beginTutorialCallPos = strpos($js, 'beginTutorial();', $beginAutoShowFnPos);
+
+        $this->assertNotFalse($markPos);
+        $this->assertNotFalse($beginTutorialCallPos);
+        $this->assertGreaterThan($beginAutoShowFnPos, $markPos);
+        $this->assertLessThan($beginTutorialCallPos, $markPos);
+    }
+
+    /**
+     * 第4段階: 自動開始は、post-auth専用案内が予約されている場合
+     * (postAuthPending)や、既に何らかの進行状態がsessionStorageに残っている
+     * 場合(loadProgress)には行わないことを確認する。これにより、
+     * ログイン直後の専用案内や、途中ページからの再開が優先される。
+     */
+    public function test_buyer_home_tutorial_js_defers_auto_show_when_other_progress_exists(): void
+    {
+        $js = file_get_contents(public_path('js/buyer-home-tutorial.js'));
+
+        $tryAutoShowStart = strpos($js, 'function tryAutoShow()');
+        $beginAutoShowStart = strpos($js, 'function beginAutoShow()');
+        $tryAutoShowBody = substr($js, $tryAutoShowStart, $beginAutoShowStart - $tryAutoShowStart);
+
+        $this->assertStringContainsString('if (postAuthPending) {', $tryAutoShowBody);
+        $this->assertStringContainsString("if (window.DemoTutorial.loadProgress('buyer')) {", $tryAutoShowBody);
+    }
+
+    /**
+     * 第4段階: 自動開始のトリガー(tryAutoShow呼び出し)は、商品カードの
+     * 描画完了イベントを待つ設計(setTimeoutの固定時間待ちに頼らない)に
+     * なっていることを確認する。
+     */
+    public function test_buyer_home_tutorial_js_waits_for_products_rendered_before_auto_show(): void
+    {
+        $js = file_get_contents(public_path('js/buyer-home-tutorial.js'));
+
+        $this->assertStringContainsString('if (autoShowPending) {', $js);
+        $this->assertStringContainsString('autoShowPending = false;', $js);
+        $this->assertStringContainsString('autoShowPending = true;', $js);
+    }
+
+    /**
+     * 第4段階: 「使い方を見る」ボタン自体の有効/無効判定に、auto_shown・seenの
+     *状態が一切関与しないことを確認する(常に手動で再開始できる、という要件)。
+     * ボタンのdisabled制御は、商品カード描画待ち(pendingStart)だけが理由で
+     * 行われる設計であることの裏付け。
+     */
+    public function test_start_button_click_handler_does_not_check_seen_or_auto_shown(): void
+    {
+        $js = file_get_contents(public_path('js/buyer-home-tutorial.js'));
+
+        $clickHandlerStart = strpos($js, "startButton.addEventListener('click'");
+        $tryAutoShowSectionStart = strpos($js, '第4段階: buyer.homeへの初回訪問時');
+        $clickHandlerBody = substr($js, $clickHandlerStart, $tryAutoShowSectionStart - $clickHandlerStart);
+
+        $this->assertStringNotContainsString('hasSeenTutorial', $clickHandlerBody);
+        $this->assertStringNotContainsString('hasAutoShownTutorial', $clickHandlerBody);
+    }
 }

@@ -34,6 +34,12 @@
     var SEEN_KEY_SUFFIX = '_seen_v1';
     var PROGRESS_KEY_PREFIX = 'kazeyui_demo_tutorial_';
     var PROGRESS_KEY_SUFFIX = '_progress_v1';
+    // 第4段階: 「最後まで完了したか」(seen)とは別に、「このブラウザで
+    // 初回自動表示を一度でも実行したか」を独立して管理する。
+    // 自動表示は、Escや×で途中終了しても(seenは立たなくても)auto_shownだけは
+    // 残すことで、次回訪問時に勝手にまた自動開始しないようにするための仕組み。
+    var AUTO_SHOWN_KEY_PREFIX = 'kazeyui_demo_tutorial_';
+    var AUTO_SHOWN_KEY_SUFFIX = '_auto_shown_v1';
 
     /**
      * localStorage/sessionStorageは、プライベートブラウジング設定や
@@ -75,6 +81,21 @@
 
     function markTutorialSeen(tutorialKey) {
         safeSetItem(window.localStorage, SEEN_KEY_PREFIX + tutorialKey + SEEN_KEY_SUFFIX, '1');
+    }
+
+    /**
+     * hasSeenTutorial/markTutorialSeenと同じ形の、初回自動表示専用の関数。
+     * seenとは意図的に別のキーで管理する(「完了したか」と「一度自動表示したか」は
+     * 別の問い)。画面固有の接続コード(buyer-home-tutorial.js)が、
+     * 自動開始を試みる前にhasAutoShownTutorialを確認し、自動開始した
+     * 瞬間にmarkAutoShownTutorialを呼ぶ想定。
+     */
+    function hasAutoShownTutorial(tutorialKey) {
+        return safeGetItem(window.localStorage, AUTO_SHOWN_KEY_PREFIX + tutorialKey + AUTO_SHOWN_KEY_SUFFIX) === '1';
+    }
+
+    function markAutoShownTutorial(tutorialKey) {
+        safeSetItem(window.localStorage, AUTO_SHOWN_KEY_PREFIX + tutorialKey + AUTO_SHOWN_KEY_SUFFIX, '1');
     }
 
     /**
@@ -691,6 +712,8 @@
         currentStepIndex: currentStepIndex,
         hasSeenTutorial: hasSeenTutorial,
         markTutorialSeen: markTutorialSeen,
+        hasAutoShownTutorial: hasAutoShownTutorial,
+        markAutoShownTutorial: markAutoShownTutorial,
         saveProgress: saveProgress,
         loadProgress: loadProgress,
         clearProgress: clearProgress

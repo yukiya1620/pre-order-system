@@ -9,13 +9,20 @@
  * 第3-B: 商品一覧(1ステップ)→商品詳細(3ステップ)→ログイン(2ステップ)の
  * ページ横断に加えて、認証成功後にbuyer.homeへ戻ってきたときの専用案内
  * (「もう一度商品を選びましょう」)まで。
- * 第3-C(今回)の範囲: orders.confirm・注文確定・注文完了までの接続。
+ * 第3-C: orders.confirm・注文確定・注文完了までの接続。
  * これに伴い、合計ステップ数が確定した('?'表示の解消)。
  * 未ログインから開始(認証を経由する)経路と、最初からログイン済みで
  * 開始する経路とで、合計ステップ数(11 / 7)が変わる。この区別を
  * 「flow」('guest' / 'authenticated')という値として進行状況(sessionStorage)に
  * 一緒に保存し、ページを横断してもorders.confirm等が正しいステップ数・
  * 開始位置を計算できるようにする。
+ * 第4段階(今回)の範囲: buyer.homeへの初回訪問時、購入者チュートリアルを
+ * 自動的に開始する。「seen」(最後まで完了したか)とは別に「auto_shown」
+ * (このブラウザで初回自動表示を一度でも実行したか)を独立管理し、
+ * Esc・×・途中離脱で完了しなくても、次回訪問時にまた勝手に始まらないように
+ * する(詳細はhasAutoShownTutorial/markAutoShownTutorialのコメント参照)。
+ * 自動開始の対象はbuyer.homeのみ。「使い方を見る」ボタンはauto_shown/seenの
+ * 状態にかかわらず、常に手動で使える(既存のまま変更しない)。
  */
 (function () {
     if (!window.DemoTutorial) {
@@ -58,6 +65,10 @@
             postAuthPending = false;
             beginPostAuthTutorial();
         }
+        if (autoShowPending) {
+            autoShowPending = false;
+            beginAutoShow();
+        }
     });
 
     // ------------------------------------------------------------------
@@ -88,6 +99,8 @@
 
     var postAuthActive = false;
     var postAuthPending = false;
+    // 第4段階: 初回自動表示の待機フラグ(商品カード描画待ち)。
+    var autoShowPending = false;
 
     function beginPostAuthTutorial() {
         postAuthActive = true;
@@ -285,4 +298,55 @@
             }
         }, 8000);
     });
+
+    // ------------------------------------------------------------------
+    // 第4段階: buyer.homeへの初回訪問時、購入者チュートリアルを自動的に開始する
+    // ------------------------------------------------------------------
+    //
+    // 「使い方を見る」ボタンによる手動開始(beginTutorial)をそのまま再利用する。
+    // 自動開始した瞬間にauto_shownフラグを立てるため、その後Esc・×・途中の
+    // ページ離脱でチュートリアルを閉じても、次回訪問時にまた勝手に始まる
+    // ことはない(seenとauto_shownはここで意図的に分離している。seenは
+    // 最終ステップの「完了」を押した場合だけ、共通基盤側で別途保存される)。
+
+    /**
+     * 自動開始してよいかを判定する。以下のいずれかに該当する場合は行わない。
+     *   - 既に何らかのツアーが表示中(post-auth専用案内など)
+     *   - 商品カード描画待ちでpost-auth専用案内が予約されている
+     *     (ログイン直後の案内を優先し、通常の自動開始とは競合させない)
+     *   - このブラウザで既に一度、自動表示を実行済み(hasAutoShownTutorial)
+     *   - sessionStorageに何らかの進行状態が残っている(直接アクセスではなく
+     *     途中のページから戻ってきた形跡がある場合は、初回訪問とみなさない)
+     */
+    function tryAutoShow() {
+        if (window.DemoTutorial.isActive()) {
+            return;
+        }
+        if (postAuthPending) {
+            return;
+        }
+        if (window.DemoTutorial.hasAutoShownTutorial('buyer')) {
+            return;
+        }
+        if (window.DemoTutorial.loadProgress('buyer')) {
+            return;
+        }
+
+        if (productsReady) {
+            beginAutoShow();
+        } else {
+            // 商品カードの描画がまだ終わっていない場合は、描画完了イベントを待つ。
+            autoShowPending = true;
+        }
+    }
+
+    function beginAutoShow() {
+        // 自動開始した「その瞬間」にauto_shownを保存する。この後の経緯
+        // (最後まで見た・Escで閉じた・別ページへ移動した等)にかかわらず、
+        // 「一度は自動的に見せた」という事実を残すための意図的なタイミング。
+        window.DemoTutorial.markAutoShownTutorial('buyer');
+        beginTutorial();
+    }
+
+    tryAutoShow();
 })();

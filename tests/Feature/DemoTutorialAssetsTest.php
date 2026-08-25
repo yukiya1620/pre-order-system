@@ -132,4 +132,53 @@ class DemoTutorialAssetsTest extends TestCase
         $this->assertStringContainsString('state.extra = options.extra || null;', $js);
         $this->assertStringContainsString('progressToSave[extraKey] = state.extra[extraKey];', $js);
     }
+
+    /**
+     * 第4段階: 「最後まで完了したか」(seen)とは別のキーで、「このブラウザで
+     * 初回自動表示を一度でも実行したか」(auto_shown)を管理する関数
+     * (hasAutoShownTutorial/markAutoShownTutorial)が、公開API
+     * (window.DemoTutorial)に含まれていることを確認する。
+     */
+    public function test_demo_tutorial_js_exposes_auto_shown_functions(): void
+    {
+        $js = file_get_contents(public_path('js/demo-tutorial.js'));
+
+        $this->assertStringContainsString('function hasAutoShownTutorial(tutorialKey)', $js);
+        $this->assertStringContainsString('function markAutoShownTutorial(tutorialKey)', $js);
+        $this->assertStringContainsString('hasAutoShownTutorial: hasAutoShownTutorial,', $js);
+        $this->assertStringContainsString('markAutoShownTutorial: markAutoShownTutorial,', $js);
+    }
+
+    /**
+     * auto_shownはseenとは別のlocalStorageキー(接尾辞が異なる)で管理される
+     * ことを確認する。同じキーを共有してしまうと、「完了していないのに
+     * 自動表示だけ済んだ」状態を区別できなくなってしまう。
+     */
+    public function test_auto_shown_key_is_distinct_from_seen_key(): void
+    {
+        $js = file_get_contents(public_path('js/demo-tutorial.js'));
+
+        $this->assertStringContainsString("SEEN_KEY_SUFFIX = '_seen_v1'", $js);
+        $this->assertStringContainsString("AUTO_SHOWN_KEY_SUFFIX = '_auto_shown_v1'", $js);
+    }
+
+    /**
+     * hasAutoShownTutorial/markAutoShownTutorialも、既存のhasSeenTutorial等と
+     * 同様にsafeGetItem/safeSetItem経由でlocalStorageへアクセスすることを
+     * 確認する。これにより、プライベートブラウジング等でlocalStorageが
+     * 使えない環境でも例外を投げず、通常画面を壊さない
+     * (常にfalse相当を返し、手動操作は引き続き行える)。
+     */
+    public function test_auto_shown_functions_use_safe_storage_access(): void
+    {
+        $js = file_get_contents(public_path('js/demo-tutorial.js'));
+
+        $hasFnStart = strpos($js, 'function hasAutoShownTutorial(tutorialKey)');
+        $markFnStart = strpos($js, 'function markAutoShownTutorial(tutorialKey)');
+        $markFnEnd = strpos($js, '}', $markFnStart);
+        $body = substr($js, $hasFnStart, $markFnEnd - $hasFnStart);
+
+        $this->assertStringContainsString('safeGetItem(window.localStorage,', $body);
+        $this->assertStringContainsString('safeSetItem(window.localStorage,', $body);
+    }
 }
