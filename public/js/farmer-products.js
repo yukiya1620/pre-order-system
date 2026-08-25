@@ -185,9 +185,21 @@
         }
         emptyEl.hidden = true;
 
-        filtered.forEach(function (product) {
-            listEl.appendChild(buildCard(product));
+        filtered.forEach(function (product, index) {
+            var card = buildCard(product);
+            // 一般公開デモの操作チュートリアル向けに、最初のカードだけ
+            // 対象の目印を付ける(buyer-home.jsの商品カードと同じ考え方)。
+            // 編集・再販売リンク等の既存動作には一切影響しない。
+            if (index === 0) {
+                card.dataset.demoTutorial = 'farmer-product-card';
+            }
+            listEl.appendChild(card);
         });
+
+        // 一般公開デモの操作チュートリアル向けに、カードの描画(絞り込み再描画も
+        // 含む)が完了したことを知らせる。チュートリアル側はこのイベントを
+        // 待ってから対象要素を探すことで、setTimeoutの秒数決め打ちに頼らずに済む。
+        document.dispatchEvent(new CustomEvent('demo-tutorial:farmer-products-rendered'));
     }
 
     function loadProducts() {

@@ -104,6 +104,28 @@
             <button type="button" id="auth-switch-to-email-button">メールアドレス+パスワードでログインする</button>
         </p>
 
+        {{--
+            一般公開デモ専用: DEMO_MODE=true かつ販売者デモ用のメール・パスワードが
+            両方設定されている場合だけ、「販売者デモを試す方」向けの案内を表示する。
+            この農家アカウントは一般公開デモ専用であり、DEMO_MODE=trueの画面で
+            利用者へ案内すること自体が想定された用途(本番アカウントの資格情報とは無関係)。
+            認証処理そのもの(メール+パスワードログインAPI)は変更せず、
+            「メール+パスワード方式への切り替え」と「入力欄への値のセット」だけを
+            補助する。実際にログインボタンを押すのは利用者本人(ワンクリック認証
+            バイパスは行わない)。mode==='login'のときだけ表示する
+            (会員登録画面には電話番号→メール切り替え自体が存在しないため)。
+            値そのものをBlade・JSにハードコードせず、config経由の値をそのまま
+            data属性として出力するだけに留める。
+        --}}
+        @if ($mode === 'login' && config('demo.enabled') && config('demo.tutorial_farmer_email') && config('demo.tutorial_farmer_password'))
+            <div class="auth-form__farmer-demo-hint"
+                 data-demo-tutorial-farmer-email="{{ config('demo.tutorial_farmer_email') }}"
+                 data-demo-tutorial-farmer-password="{{ config('demo.tutorial_farmer_password') }}">
+                <p class="auth-form__farmer-demo-hint-text">販売者(農家)デモを試す方は、こちらでログイン情報を入力できます。</p>
+                <button type="button" id="farmer-demo-fill-button">📋 販売者デモのログイン情報を入力</button>
+            </div>
+        @endif
+
         <form id="email-login-form" hidden>
             <div class="field">
                 <label for="login-email">メールアドレス</label>

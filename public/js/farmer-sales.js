@@ -77,6 +77,12 @@
             });
 
             summaryContentEl.hidden = false;
+            // 一般公開デモの操作チュートリアル向けに、売上サマリーの表示が
+            // 完了したことを知らせる。チュートリアル(DEMO_MODE=trueのときだけ
+            // 読み込まれる)はこのイベントを待ってから対象要素を探すことで、
+            // 取得に失敗した場合(このイベントが発火しない場合)にチュートリアルの
+            // 最終ステップが誤って完了扱いになるのを防ぐ。
+            document.dispatchEvent(new CustomEvent('demo-tutorial:farmer-sales-rendered'));
         }).catch(function () {
             summaryLoadingEl.hidden = true;
             showSummaryError('売上集計の取得に失敗しました。時間をおいてもう一度お試しください。');

@@ -232,9 +232,23 @@
                 return;
             }
 
-            confirmations.forEach(function (confirmation) {
-                listEl.appendChild(buildCard(confirmation));
+            confirmations.forEach(function (confirmation, index) {
+                var card = buildCard(confirmation);
+                // 一般公開デモの操作チュートリアル向けに、最初のカードだけ
+                // 対象の目印を付ける(buyer-home.jsの商品カードと同じ考え方)。
+                // 回答ボタン等の既存動作には一切影響しない。
+                if (index === 0) {
+                    card.dataset.demoTutorial = 'farmer-delivery-confirmation-card';
+                }
+                listEl.appendChild(card);
             });
+
+            // 一般公開デモの操作チュートリアル向けに、カードの描画が完了した
+            // ことを知らせる。チュートリアル(DEMO_MODE=trueのときだけ読み込まれる)は
+            // このイベントを待ってから対象要素を探すことで、setTimeoutの秒数
+            // 決め打ちに頼らずに済む。チュートリアルを読み込んでいない画面でも、
+            // 発火自体は無害(リスナーが無いだけ)。
+            document.dispatchEvent(new CustomEvent('demo-tutorial:farmer-delivery-confirmations-rendered'));
         }).catch(function () {
             loadingEl.hidden = true;
             showGeneralMessage('注文の取得に失敗しました。時間をおいてもう一度お試しください。');

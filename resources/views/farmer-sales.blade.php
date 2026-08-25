@@ -19,7 +19,7 @@
                 <h2>確定売上</h2>
                 <p class="sales-page__note">確定売上には、未払い・返金済みの注文も含まれます(支払い状況にかかわらず、配達完了した注文はすべて計上されます)。</p>
 
-                <div class="sales-cards">
+                <div class="sales-cards" data-demo-tutorial="farmer-sales-summary">
                     <div class="sales-card">
                         <p class="sales-card__label">本日</p>
                         <p class="sales-card__amount" id="confirmed-today-amount"></p>
@@ -119,4 +119,13 @@
 
 @push('scripts')
     <script src="{{ asset('js/farmer-sales.js') }}" defer></script>
+    {{--
+        売上確認のチュートリアル接続コード(購入者側チュートリアルの
+        orders.completeと同じく、販売者側チュートリアルの最終ステップ)。
+        共通基盤(demo-tutorial.js)や売上集計の取得・表示処理(farmer-sales.js)
+        には手を入れず、この画面専用のファイルとして分離する。
+    --}}
+    @if (config('demo.enabled'))
+        <script src="{{ asset('js/farmer-sales-tutorial.js') }}" defer></script>
+    @endif
 @endpush

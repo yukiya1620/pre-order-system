@@ -181,4 +181,56 @@ class DemoTutorialAssetsTest extends TestCase
         $this->assertStringContainsString('safeGetItem(window.localStorage,', $body);
         $this->assertStringContainsString('safeSetItem(window.localStorage,', $body);
     }
+
+    /**
+     * 第5-B: 購入者(buyer)・販売者(farmer)のストレージキーが、
+     * tutorialKey引数だけで完全に分離されることを確認する。
+     * SEEN_KEY_PREFIX + tutorialKey + SEEN_KEY_SUFFIX という組み立て方が
+     * 共通基盤側にあるため、呼び出し側がtutorialKeyに'buyer'/'farmer'を
+     * 渡すだけで、kazeyui_demo_tutorial_buyer_seen_v1 /
+     * kazeyui_demo_tutorial_farmer_seen_v1 のように自動的に分かれる
+     * (共通基盤側にbuyer/farmer専用のコードは一切無い)。
+     */
+    public function test_seen_and_progress_keys_are_built_from_tutorial_key_argument(): void
+    {
+        $js = file_get_contents(public_path('js/demo-tutorial.js'));
+
+        $this->assertStringContainsString(
+            "safeGetItem(window.localStorage, SEEN_KEY_PREFIX + tutorialKey + SEEN_KEY_SUFFIX) === '1';",
+            $js
+        );
+        $this->assertStringContainsString(
+            "safeSetItem(window.sessionStorage, PROGRESS_KEY_PREFIX + tutorialKey + PROGRESS_KEY_SUFFIX, JSON.stringify(progress));",
+            $js
+        );
+        // tutorialKeyの値によって処理を分岐するコード(=buyer/farmer専用の
+        // 特別扱い)が基盤側に無いことを確認する(tutorialKeyを渡すのは
+        // 呼び出し側の責務であることの裏付け)。コメント中の例示
+        // (「'buyer'や'farmer'など」)とは区別するため、条件分岐の構文で検索する。
+        $this->assertStringNotContainsString("tutorialKey === 'buyer'", $js);
+        $this->assertStringNotContainsString("tutorialKey === 'farmer'", $js);
+        $this->assertStringNotContainsString("tutorialKey == 'buyer'", $js);
+        $this->assertStringNotContainsString("tutorialKey == 'farmer'", $js);
+    }
+
+    /**
+     * 販売者側の接続コード群(farmer-*-tutorial.js)がすべて
+     * tutorialKey: 'farmer' を使い、購入者側('buyer')とは異なる値を
+     * 渡していることを確認する。
+     */
+    public function test_farmer_tutorial_files_use_farmer_tutorial_key(): void
+    {
+        $files = [
+            'farmer-home-tutorial.js',
+            'farmer-delivery-confirmations-tutorial.js',
+            'farmer-products-tutorial.js',
+            'farmer-sales-tutorial.js',
+        ];
+
+        foreach ($files as $file) {
+            $js = file_get_contents(public_path('js/'.$file));
+            $this->assertStringContainsString("tutorialKey: 'farmer'", $js, $file.' should use tutorialKey: farmer');
+            $this->assertStringNotContainsString("tutorialKey: 'buyer'", $js, $file.' should not reference buyer tutorialKey');
+        }
+    }
 }

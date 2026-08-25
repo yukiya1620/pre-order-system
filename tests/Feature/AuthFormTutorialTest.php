@@ -194,4 +194,112 @@ class AuthFormTutorialTest extends TestCase
         $this->assertStringContainsString("addEventListener('pageshow'", $js);
         $this->assertStringContainsString('event.persisted', $js);
     }
+
+    /**
+     * 第5-B: 販売者デモを試す方向けの案内(farmer-demo-fill-button)は、
+     * DEMO_MODE=trueかつ販売者デモ用のメール・パスワードが両方設定されている
+     * 場合だけ、ログイン画面(mode==='login')に表示されることを確認する。
+     */
+    public function test_farmer_demo_hint_is_shown_when_demo_mode_enabled_and_credentials_configured(): void
+    {
+        config([
+            'demo.enabled' => true,
+            'demo.tutorial_farmer_email' => 'demo-farmer@example.com',
+            'demo.tutorial_farmer_password' => 'password',
+        ]);
+
+        $response = $this->get('/login');
+
+        $response->assertOk();
+        $response->assertSee('id="farmer-demo-fill-button"', false);
+        $response->assertSee('data-demo-tutorial-farmer-email="demo-farmer@example.com"', false);
+        $response->assertSee('data-demo-tutorial-farmer-password="password"', false);
+    }
+
+    public function test_farmer_demo_hint_is_not_shown_when_demo_mode_disabled(): void
+    {
+        config([
+            'demo.enabled' => false,
+            'demo.tutorial_farmer_email' => 'demo-farmer@example.com',
+            'demo.tutorial_farmer_password' => 'password',
+        ]);
+
+        $response = $this->get('/login');
+
+        $response->assertOk();
+        $response->assertDontSee('farmer-demo-fill-button', false);
+        $response->assertDontSee('demo-farmer@example.com', false);
+        $response->assertDontSee('data-demo-tutorial-farmer-password', false);
+    }
+
+    /**
+     * メール・パスワードのどちらか一方でも未設定なら、公開デモ資格情報を
+     * 画面へ一切出力しないことを確認する(中途半端な案内を出さないため)。
+     */
+    public function test_farmer_demo_hint_is_not_shown_when_email_is_missing(): void
+    {
+        config([
+            'demo.enabled' => true,
+            'demo.tutorial_farmer_email' => null,
+            'demo.tutorial_farmer_password' => 'password',
+        ]);
+
+        $response = $this->get('/login');
+
+        $response->assertOk();
+        $response->assertDontSee('farmer-demo-fill-button', false);
+    }
+
+    public function test_farmer_demo_hint_is_not_shown_when_password_is_missing(): void
+    {
+        config([
+            'demo.enabled' => true,
+            'demo.tutorial_farmer_email' => 'demo-farmer@example.com',
+            'demo.tutorial_farmer_password' => null,
+        ]);
+
+        $response = $this->get('/login');
+
+        $response->assertOk();
+        $response->assertDontSee('farmer-demo-fill-button', false);
+    }
+
+    /**
+     * 会員登録画面(register)には、電話番号→メールへの切り替え導線自体が
+     * 存在しないため、販売者デモ案内も表示しないことを確認する。
+     */
+    public function test_farmer_demo_hint_is_not_shown_on_register_page(): void
+    {
+        config([
+            'demo.enabled' => true,
+            'demo.tutorial_farmer_email' => 'demo-farmer@example.com',
+            'demo.tutorial_farmer_password' => 'password',
+        ]);
+
+        $response = $this->get('/register');
+
+        $response->assertOk();
+        $response->assertDontSee('farmer-demo-fill-button', false);
+    }
+
+    /**
+     * 案内ボタンは、既存の「メールアドレス+パスワードでログインする」への
+     * 切り替えボタンを実際にクリックし、入力欄へ値をセットするだけで、
+     * ログインAPIを一切呼ばないことを確認する(ワンクリック認証バイパスを
+     * 行わない設計であることの裏付け)。
+     */
+    public function test_farmer_demo_fill_button_only_switches_and_fills_without_calling_login_api(): void
+    {
+        $js = file_get_contents(public_path('js/auth-form-tutorial.js'));
+
+        $farmerSectionStart = strpos($js, "farmer-demo-fill-button');");
+        $this->assertNotFalse($farmerSectionStart);
+        $farmerSectionBody = substr($js, $farmerSectionStart);
+
+        $this->assertStringContainsString('switchButton.click()', $farmerSectionBody);
+        $this->assertStringContainsString("emailInput.value = email", $farmerSectionBody);
+        $this->assertStringContainsString("passwordInput.value = password", $farmerSectionBody);
+        $this->assertStringNotContainsString('fetch(', $farmerSectionBody);
+        $this->assertStringNotContainsString('email-login-submit-button\').click()', $farmerSectionBody);
+    }
 }

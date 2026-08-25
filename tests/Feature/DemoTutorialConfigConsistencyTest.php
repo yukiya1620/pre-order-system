@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\User;
 use Database\Seeders\PortfolioDemoSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
 /**
@@ -65,5 +66,43 @@ class DemoTutorialConfigConsistencyTest extends TestCase
         config(['demo.tutorial_buyer_phone' => null]);
 
         $this->assertNull(config('demo.tutorial_buyer_phone'));
+    }
+
+    /**
+     * 第5-B: config('demo.tutorial_farmer_email'/'tutorial_farmer_password')
+     * (販売者デモ案内用のログイン情報)が、PortfolioDemoSeederが実際に作成する
+     * 農家アカウント(demo-farmer@example.com)と整合していることを確認する。
+     * このテストもconfigを明示的にオーバーライドして検証するものであり、
+     * 本番の実際の.env設定値の整合性までは保証しない。
+     */
+    public function test_tutorial_farmer_email_matches_a_farmer_created_by_the_seeder(): void
+    {
+        config([
+            'demo.enabled' => true,
+            'demo.tutorial_farmer_email' => 'demo-farmer@example.com',
+            'demo.tutorial_farmer_password' => 'password',
+        ]);
+
+        $this->seed(PortfolioDemoSeeder::class);
+
+        $farmer = User::where('email', config('demo.tutorial_farmer_email'))
+            ->where('role', User::ROLE_FARMER)
+            ->first();
+
+        $this->assertNotNull($farmer);
+        $this->assertTrue(Hash::check(config('demo.tutorial_farmer_password'), $farmer->password));
+    }
+
+    /**
+     * tutorial_farmer_email/tutorial_farmer_passwordが未設定(null)の場合、
+     * config自体は問題なく動作すること(例外にならないこと)を確認する。
+     * Blade側の出し分けはAuthFormTutorialTestで別途確認している。
+     */
+    public function test_tutorial_farmer_credentials_default_to_null_when_env_is_unset(): void
+    {
+        config(['demo.tutorial_farmer_email' => null, 'demo.tutorial_farmer_password' => null]);
+
+        $this->assertNull(config('demo.tutorial_farmer_email'));
+        $this->assertNull(config('demo.tutorial_farmer_password'));
     }
 }

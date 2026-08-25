@@ -5,7 +5,7 @@
 @section('content')
     <div class="page products-page" data-products-url="{{ url('/api/v1/farmer/products') }}" data-product-edit-base-url="{{ url('/farmer/products') }}">
         <header class="products-page__header">
-            <a href="{{ route('farmer.home') }}" class="products-page__back-link">◀ もどる</a>
+            <a href="{{ route('farmer.home') }}" class="products-page__back-link" data-demo-tutorial="farmer-back-link">◀ もどる</a>
             <h1 class="products-page__title">商品管理</h1>
         </header>
 
@@ -34,4 +34,12 @@
 
 @push('scripts')
     <script src="{{ asset('js/farmer-products.js') }}" defer></script>
+    {{--
+        商品管理のチュートリアル接続コード。共通基盤(demo-tutorial.js)や
+        商品一覧の取得・表示処理(farmer-products.js)には手を入れず、
+        この画面専用のファイルとして分離する。
+    --}}
+    @if (config('demo.enabled'))
+        <script src="{{ asset('js/farmer-products-tutorial.js') }}" defer></script>
+    @endif
 @endpush

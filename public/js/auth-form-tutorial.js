@@ -11,9 +11,16 @@
  * 認証成功後は常にbuyer.home(商品一覧)へ戻る現在の仕様(redirectAfterAuth)を
  * そのまま前提とする。
  *
- * 第3-B(今回)の範囲: 電話番号入力→認証コード入力、の2ステップ、
- * および認証成功後にbuyer.homeで専用案内を再開するための予約保存のみ。
+ * 第3-B: 電話番号入力→認証コード入力、の2ステップ、
+ * および認証成功後にbuyer.homeで専用案内を再開するための予約保存。
  * 会員登録(register)画面は対象外(mode==='login'のときだけ動作する)。
+ *
+ * 第5-B(今回)の範囲: 販売者デモを試す方向けの案内ボタン(このファイル末尾)。
+ * 「メール+パスワード方式への切り替え」と「入力欄への値のセット」だけを
+ * 補助し、実際のログインボタンは利用者本人が押す(ワンクリック認証
+ * バイパスは行わない)。既存のメール+パスワードログインAPI・処理は
+ * 一切変更しない。購入者チュートリアルのステップ配列(steps)とは無関係の、
+ * 独立した補助機能として追加する。
  */
 (function () {
     if (!window.DemoTutorial) {
@@ -153,4 +160,44 @@
         }
         window.DemoTutorial.saveProgress('buyer', { stepIndex: 0, route: 'buyer.home', reason: 'post-auth', flow: 'guest' });
     }, true);
+
+    // ------------------------------------------------------------------
+    // 第5-B: 「販売者デモのログイン情報を入力」ボタン
+    // ------------------------------------------------------------------
+    //
+    // DEMO_MODE=trueかつ販売者デモ用のメール・パスワードが設定されている
+    // 場合だけBlade側がこの要素を出力する(farmer-demo-fill-button)。
+    // このボタンは、既存の「メールアドレス+パスワードでログインする」への
+    // 切り替えボタンを実際にクリックし、Blade側がdata属性経由で渡した値を
+    // 入力欄へセットするだけで、ログインAPIを一切呼ばない。
+    // 実際にログインボタンを押すのは利用者本人。
+    var farmerDemoFillButton = document.getElementById('farmer-demo-fill-button');
+    if (farmerDemoFillButton) {
+        var farmerDemoHintEl = document.querySelector('.auth-form__farmer-demo-hint');
+
+        farmerDemoFillButton.addEventListener('click', function () {
+            var switchButton = document.getElementById('auth-switch-to-email-button');
+            if (switchButton && !switchButton.disabled) {
+                // 既存のauth-form.js側の切り替え処理(電話番号ウィザードを隠し、
+                // メール+パスワードのフォームを表示する)をそのまま利用する。
+                switchButton.click();
+            }
+
+            if (!farmerDemoHintEl) {
+                return;
+            }
+
+            var emailInput = document.getElementById('login-email');
+            var passwordInput = document.getElementById('login-password');
+            var email = farmerDemoHintEl.dataset.demoTutorialFarmerEmail || '';
+            var password = farmerDemoHintEl.dataset.demoTutorialFarmerPassword || '';
+
+            if (emailInput) {
+                emailInput.value = email;
+            }
+            if (passwordInput) {
+                passwordInput.value = password;
+            }
+        });
+    }
 })();
