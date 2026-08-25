@@ -22,7 +22,7 @@
 
         <p id="order-confirm-message" class="message message-error" hidden></p>
 
-        <div id="order-confirm-content" hidden>
+        <div id="order-confirm-content" hidden data-demo-tutorial="buyer-order-summary">
             <dl class="order-confirm__summary">
                 <dt>商品</dt>
                 <dd id="confirm-product-name"></dd>
@@ -50,7 +50,7 @@
 
             <hr>
 
-            <button type="button" id="order-confirm-submit-button" class="order-confirm__submit-button">✔ この内容で注文する</button>
+            <button type="button" id="order-confirm-submit-button" class="order-confirm__submit-button" data-demo-tutorial="buyer-order-submit">✔ この内容で注文する</button>
             <a href="{{ $backProductSaleId ? route('products.show', $backProductSaleId) : route('buyer.home') }}" class="order-confirm__cancel-link">✕ やめる</a>
         </div>
     </div>
@@ -58,4 +58,12 @@
 
 @push('scripts')
     <script src="{{ asset('js/order-confirm.js') }}" defer></script>
+    {{--
+        注文確認画面のチュートリアル接続コード。共通基盤(demo-tutorial.js)や
+        注文確認・注文確定処理(order-confirm.js)には手を入れず、この画面
+        専用のファイルとして分離する。
+    --}}
+    @if (config('demo.enabled'))
+        <script src="{{ asset('js/order-confirm-tutorial.js') }}" defer></script>
+    @endif
 @endpush

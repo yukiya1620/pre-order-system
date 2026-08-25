@@ -44,6 +44,10 @@ class AuthFormTutorialTest extends TestCase
         $response->assertOk();
         $response->assertSee('data-demo-tutorial="buyer-login-phone"', false);
         $response->assertSee('data-demo-tutorial="buyer-login-code"', false);
+        // 第3-C: 認証コード入力欄だけでなく「認証する」ボタンまで含む要素にも
+        // 専用のdata属性が付いていることを確認する(次へボタンを表示しない
+        // 設計にしたため、認証するボタンがスポットライト内で操作できる必要がある)。
+        $response->assertSee('data-demo-tutorial="buyer-login-code-actions"', false);
     }
 
     /**
@@ -109,9 +113,24 @@ class AuthFormTutorialTest extends TestCase
         $js = file_get_contents(public_path('js/auth-form-tutorial.js'));
 
         $this->assertStringContainsString("target: 'buyer-login-phone'", $js);
-        $this->assertStringContainsString("target: 'buyer-login-code'", $js);
-        $this->assertStringContainsString("TOTAL_STEPS = '?'", $js);
+        // 第3-C: 認証コードステップの対象は、認証するボタンまで含む
+        // buyer-login-code-actionsに変更された(次へボタンを表示しない設計にしたため)。
+        $this->assertStringContainsString("target: 'buyer-login-code-actions'", $js);
+        // 第3-Cにより、ログイン画面を経由するのは常に未ログイン(guest)経路
+        // のみであることが確定したため、合計ステップ数は固定の11になった。
+        $this->assertStringContainsString('TOTAL_STEPS = 11', $js);
         $this->assertStringContainsString('STEP_OFFSET = 4', $js);
+    }
+
+    /**
+     * ログイン画面はisFinalPageを渡していない(購入者チュートリアル全体の
+     * 最終ページではないため)ことを確認する。
+     */
+    public function test_auth_form_tutorial_js_does_not_pass_is_final_page(): void
+    {
+        $js = file_get_contents(public_path('js/auth-form-tutorial.js'));
+
+        $this->assertStringNotContainsString('isFinalPage', $js);
     }
 
     /**
@@ -156,7 +175,7 @@ class AuthFormTutorialTest extends TestCase
         $authFormJs = file_get_contents(public_path('js/auth-form.js'));
 
         $this->assertStringContainsString('auth-verify-button', $tutorialJs);
-        $this->assertStringContainsString("saveProgress('buyer', { stepIndex: 0, route: 'buyer.home', reason: 'post-auth' })", $tutorialJs);
+        $this->assertStringContainsString("saveProgress('buyer', { stepIndex: 0, route: 'buyer.home', reason: 'post-auth', flow: 'guest' })", $tutorialJs);
 
         // 認証成功後のリダイレクト処理(redirectAfterAuth)は変更していないことを確認する。
         $this->assertStringContainsString('function redirectAfterAuth(user)', $authFormJs);

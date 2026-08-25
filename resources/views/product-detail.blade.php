@@ -25,35 +25,49 @@
             <p class="product-detail__order-period">📅 注文受付期間：<span id="product-detail-order-period"></span></p>
             <p class="product-detail__delivery">🚚 配達予定 <span id="product-detail-delivery-date"></span></p>
 
-            <div class="field" id="product-detail-delivery-date-field" hidden data-demo-tutorial="buyer-delivery-date">
-                <label for="product-detail-delivery-date-select">配達予定日を選ぶ</label>
-                <select id="product-detail-delivery-date-select" required></select>
+            {{--
+                data-demo-tutorial="buyer-order-actions" は、認証後にもう一度この
+                画面へ戻ってきた購入者向けの「まとめステップ」専用の目印。
+                配達日欄・数量欄・注文ボタンを個別に3回説明し直さないよう、
+                この一つの要素をスポットライトすることで、内側の配達日・数量・
+                注文ボタンをすべて実際に操作できる状態のまま案内できる
+                (スポットライトの範囲外はオーバーレイに覆われ操作できないため)。
+                通常(初回)の3ステップ案内では、これまで通り内側の
+                buyer-delivery-date/buyer-quantity/buyer-order-buttonを個別に使う。
+                レイアウト・CSS(product-detail__*)には影響しないよう、
+                このdiv自体には見た目のクラスを付けていない。
+            --}}
+            <div data-demo-tutorial="buyer-order-actions">
+                <div class="field" id="product-detail-delivery-date-field" hidden data-demo-tutorial="buyer-delivery-date">
+                    <label for="product-detail-delivery-date-select">配達予定日を選ぶ</label>
+                    <select id="product-detail-delivery-date-select" required></select>
+                </div>
+
+                <p id="product-detail-delivery-note" class="product-detail__delivery-note"></p>
+                <p id="product-detail-description" class="product-detail__description"></p>
+
+                <div class="field" data-demo-tutorial="buyer-quantity">
+                    <label for="product-detail-quantity">数量</label>
+                    <input type="number" id="product-detail-quantity" min="1" value="1">
+                </div>
+
+                <div class="field">
+                    <label for="product-detail-time-slot">配達時間帯(任意)</label>
+                    <select id="product-detail-time-slot">
+                        <option value="">指定なし</option>
+                        <option value="午前">午前</option>
+                        <option value="午後">午後</option>
+                    </select>
+                </div>
+
+                @guest
+                    <p class="product-detail__login-prompt">
+                        ご注文にはログインが必要です。<a href="{{ route('login') }}" data-demo-tutorial="buyer-order-button">ログインする ▶</a>
+                    </p>
+                @else
+                    <button type="button" id="product-detail-order-button" class="product-detail__order-button" data-demo-tutorial="buyer-order-button">この内容で注文する</button>
+                @endguest
             </div>
-
-            <p id="product-detail-delivery-note" class="product-detail__delivery-note"></p>
-            <p id="product-detail-description" class="product-detail__description"></p>
-
-            <div class="field" data-demo-tutorial="buyer-quantity">
-                <label for="product-detail-quantity">数量</label>
-                <input type="number" id="product-detail-quantity" min="1" value="1">
-            </div>
-
-            <div class="field">
-                <label for="product-detail-time-slot">配達時間帯(任意)</label>
-                <select id="product-detail-time-slot">
-                    <option value="">指定なし</option>
-                    <option value="午前">午前</option>
-                    <option value="午後">午後</option>
-                </select>
-            </div>
-
-            @guest
-                <p class="product-detail__login-prompt">
-                    ご注文にはログインが必要です。<a href="{{ route('login') }}" data-demo-tutorial="buyer-order-button">ログインする ▶</a>
-                </p>
-            @else
-                <button type="button" id="product-detail-order-button" class="product-detail__order-button" data-demo-tutorial="buyer-order-button">この内容で注文する</button>
-            @endguest
         </div>
     </div>
 @endsection

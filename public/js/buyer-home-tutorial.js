@@ -6,20 +6,36 @@
  * 一切手を加えず、この画面のステップ定義と「使い方を見る」ボタンの
  * 制御だけをここに閉じ込める。
  *
- * 第3-B(今回)の範囲: 商品一覧(1ステップ)→商品詳細(3ステップ)→
- * ログイン(2ステップ)のページ横断に加えて、認証成功後にbuyer.homeへ
- * 戻ってきたときの専用案内(「もう一度商品を選びましょう」)まで。
- * orders.confirm・注文確定・注文完了への接続はまだ第3-Cで行う。
+ * 第3-B: 商品一覧(1ステップ)→商品詳細(3ステップ)→ログイン(2ステップ)の
+ * ページ横断に加えて、認証成功後にbuyer.homeへ戻ってきたときの専用案内
+ * (「もう一度商品を選びましょう」)まで。
+ * 第3-C(今回)の範囲: orders.confirm・注文確定・注文完了までの接続。
+ * これに伴い、合計ステップ数が確定した('?'表示の解消)。
+ * 未ログインから開始(認証を経由する)経路と、最初からログイン済みで
+ * 開始する経路とで、合計ステップ数(11 / 7)が変わる。この区別を
+ * 「flow」('guest' / 'authenticated')という値として進行状況(sessionStorage)に
+ * 一緒に保存し、ページを横断してもorders.confirm等が正しいステップ数・
+ * 開始位置を計算できるようにする。
  */
 (function () {
     if (!window.DemoTutorial) {
         return;
     }
 
-    // 購入者チュートリアル全体の通し番号表示に使う値。第3-Cで注文確認・
-    // 注文完了のステップが加わるまで、合計ステップ数はまだ確定していないため、
-    // 具体的な数値を決め打ちせず '?' を表示する(例:"1 / ?")。
-    var TOTAL_STEPS = '?';
+    // 経路ごとの合計ステップ数(第2章「未ログインから開始した場合の完成形」
+    // 「最初からログイン済みの場合」に対応)。
+    var TOTAL_STEPS_GUEST = 11;
+    var TOTAL_STEPS_AUTHENTICATED = 7;
+
+    /**
+     * buyer.home自身がログイン中かどうかの判定。認証成功後の専用案内
+     * (postAuthSteps)と同じく、buyer-home.blade.phpの@authブロックが
+     * 出力する既存の要素(#buyer-home-logout-button)の有無で判定するだけで、
+     * Blade自体は変更しない。
+     */
+    function isBuyerLoggedIn() {
+        return !!document.getElementById('buyer-home-logout-button');
+    }
 
     // 商品カードは public/js/buyer-home.js がAPIレスポンスをもとに
     // 動的に生成する。カードの描画が終わるまでは data-demo-tutorial 属性を
@@ -78,10 +94,11 @@
         window.DemoTutorial.start(postAuthSteps, {
             tutorialKey: 'buyer',
             route: 'buyer.home',
-            // reasonは進行状況に一緒に保存され、次に読み込むときも
-            // 「認証直後専用の案内である」ことを区別できる。
-            extra: { reason: 'post-auth' },
-            totalSteps: TOTAL_STEPS,
+            // reason/flowは進行状況に一緒に保存され、次に読み込むときも
+            // 「認証を経由した専用案内である」ことを区別できる。
+            // 認証を経由するのは常にguest経路のみのため、flowは固定でよい。
+            extra: { reason: 'post-auth', flow: 'guest' },
+            totalSteps: TOTAL_STEPS_GUEST,
             // 商品一覧1 + 商品詳細3 + ログイン2 = 6個の後に続く専用案内。
             stepOffset: 6,
             onFinish: function () {
@@ -89,6 +106,38 @@
             }
         });
     }
+
+    /**
+     * 認証後専用案内(ステップ7)が表示されている間に、実際に商品カードの
+     * リンクがクリックされたら、商品詳細(products.show)側で
+     * 「まとめステップ(ステップ8)」から自然に続けられるよう、遷移前に
+     * 進行状況を保存しておく。通常フロー用のリスナー(下記)とは別に
+     * 用意する(postAuthActiveとtutorialActiveは同時にtrueにならない)。
+     */
+    document.addEventListener('click', function (event) {
+        if (!postAuthActive) {
+            return;
+        }
+
+        var link = event.target.closest('.product-card__detail-link');
+        if (!link) {
+            return;
+        }
+
+        var card = link.closest('[data-demo-tutorial="buyer-product-card"]');
+        if (!card) {
+            return;
+        }
+
+        // reason: 'post-auth' を引き継ぐことで、product-detail-tutorial.js側が
+        // 「まとめステップ(1ステップ版)」を使うべきと判定できる。
+        window.DemoTutorial.saveProgress('buyer', {
+            stepIndex: 0,
+            route: 'products.show',
+            reason: 'post-auth',
+            flow: 'guest'
+        });
+    }, true);
 
     /**
      * sessionStorageの進行状況を見て、認証直後の専用案内を再開してよいか
@@ -145,6 +194,9 @@
     // されたことを検知できるようにする(チュートリアルを開いていない通常の
     // 閲覧では一切関与しない)。
     var tutorialActive = false;
+    // beginTutorial()で決めたflowを、後続の商品カードクリック時の
+    // saveProgressへ引き継ぐために保持しておく。
+    var currentFlow = 'guest';
 
     var pendingStart = false;
     var readyTimeoutId = null;
@@ -157,11 +209,15 @@
     function beginTutorial() {
         resetButton();
         tutorialActive = true;
+        // ログイン済み利用者が「使い方を見る」から始めた場合は、SMS認証を
+        // 案内しない短縮フロー(7ステップ)にする(第4章)。
+        currentFlow = isBuyerLoggedIn() ? 'authenticated' : 'guest';
         window.DemoTutorial.start(steps, {
             tutorialKey: 'buyer',
             route: 'buyer.home',
             triggerElement: startButton,
-            totalSteps: TOTAL_STEPS,
+            extra: { flow: currentFlow },
+            totalSteps: currentFlow === 'authenticated' ? TOTAL_STEPS_AUTHENTICATED : TOTAL_STEPS_GUEST,
             stepOffset: 0,
             onFinish: function () {
                 tutorialActive = false;
@@ -196,7 +252,9 @@
         }
 
         // products.show側のローカルなステップ配列における開始位置(0=配達希望日)。
-        window.DemoTutorial.saveProgress('buyer', { stepIndex: 0, route: 'products.show' });
+        // flowを引き継ぐことで、products.show側・orders.confirm側が正しい
+        // 合計ステップ数(11/7)を計算できる。
+        window.DemoTutorial.saveProgress('buyer', { stepIndex: 0, route: 'products.show', flow: currentFlow });
     }, true);
 
     startButton.addEventListener('click', function () {

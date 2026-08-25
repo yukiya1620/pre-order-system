@@ -25,10 +25,10 @@
         return;
     }
 
-    // 購入者チュートリアル全体の通し番号表示に使う値。第3-Cで注文確認・
-    // 注文完了のステップが加わるまで、合計ステップ数はまだ確定していないため、
-    // 具体的な数値を決め打ちせず '?' を表示する(例:"5 / ?")。
-    var TOTAL_STEPS = '?';
+    // 購入者チュートリアル全体の通し番号表示に使う値。ログイン画面を
+    // 経由するのは常に未ログイン(guest)経路のみのため、合計ステップ数は
+    // 固定の11で確定してよい(第3-Cで全体のフローが完成)。
+    var TOTAL_STEPS = 11;
     // 商品一覧1 + 商品詳細3 = 4個の後に続くため、このページは5番目から始まる。
     var STEP_OFFSET = 4;
 
@@ -54,7 +54,13 @@
             description: buildPhoneStepDescription()
         },
         {
-            target: 'buyer-login-code',
+            // 認証コード入力欄だけでなく「認証する」ボタンまで含む要素を対象にする
+            // (buyer-login-code-actions)。これは第3-Cで、非最終ページのローカル
+            // 最終ステップでは吹き出しの次へボタンを表示せず、利用者が実際の
+            // 画面操作(認証コード入力→認証するボタン)で次のページ(buyer.home)へ
+            // 進む設計にしたことに伴う対応(認証するボタンが操作可能な範囲に
+            // 含まれている必要があるため)。
+            target: 'buyer-login-code-actions',
             description: '画面に表示された認証コードを入力します。実際にSMSを受け取らなくても体験できます。'
         }
     ];
@@ -145,6 +151,6 @@
         if (!event.target.closest('#auth-verify-button')) {
             return;
         }
-        window.DemoTutorial.saveProgress('buyer', { stepIndex: 0, route: 'buyer.home', reason: 'post-auth' });
+        window.DemoTutorial.saveProgress('buyer', { stepIndex: 0, route: 'buyer.home', reason: 'post-auth', flow: 'guest' });
     }, true);
 })();

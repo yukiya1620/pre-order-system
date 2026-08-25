@@ -76,7 +76,15 @@
                 </div>
             </div>
 
-            <div class="auth-step" data-step-name="code" hidden>
+            {{--
+                data-demo-tutorial="buyer-login-code-actions" は、チュートリアルの
+                「認証コード」ステップ専用の目印。認証コード入力欄だけでなく
+                「認証する」ボタンまで含めてスポットライトすることで、
+                このステップ中でも実際に認証コードを入力して認証を完了できる
+                状態のまま案内する(第3-C: 非最終ページのローカル最終ステップでは
+                次へボタンを表示せず、実操作で次へ進む設計としたための対応)。
+            --}}
+            <div class="auth-step" data-step-name="code" hidden data-demo-tutorial="buyer-login-code-actions">
                 <p id="auth-code-sent-note" class="auth-form__note"></p>
                 <div class="field" data-demo-tutorial="buyer-login-code">
                     <label for="auth-code">認証コード(6桁)</label>

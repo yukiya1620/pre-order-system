@@ -109,6 +109,12 @@
             loadingEl.hidden = true;
             renderPreview(data.order_preview);
             contentEl.hidden = false;
+            // 一般公開デモの操作チュートリアル向けに、注文内容の表示が
+            // 完了したことを知らせる。チュートリアル(DEMO_MODE=trueのときだけ
+            // 読み込まれる)はこのイベントを待ってから対象要素を探すことで、
+            // setTimeoutの秒数決め打ちに頼らずに済む。チュートリアルを
+            // 読み込んでいない画面でも、発火自体は無害(リスナーが無いだけ)。
+            document.dispatchEvent(new CustomEvent('demo-tutorial:order-confirm-rendered'));
         }).catch(function () {
             loadingEl.hidden = true;
             showMessage('注文内容の確認に失敗しました。時間をおいてもう一度お試しください。');
@@ -155,6 +161,12 @@
                 submitButton.textContent = '✔ この内容で注文する';
                 return;
             }
+            // 一般公開デモの操作チュートリアル向けに、注文確定が成功したことを
+            // 知らせる(失敗時は呼ばれない)。チュートリアル側はこのイベントを
+            // 見てから次ページ(注文完了)用の進行状況を保存する。
+            document.dispatchEvent(new CustomEvent('demo-tutorial:order-submitted', {
+                detail: { orderId: data.order.id }
+            }));
             // replace()で遷移することで、注文完了後に「戻る」を押してもこの確認画面に
             // 戻らないようにする(二重送信防止)。
             window.location.replace(orderCompleteBaseUrl + '/' + data.order.id + '/complete');

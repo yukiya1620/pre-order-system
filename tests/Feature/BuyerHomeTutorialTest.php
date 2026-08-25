@@ -68,14 +68,31 @@ class BuyerHomeTutorialTest extends TestCase
     }
 
     /**
-     * 第3-B: 合計ステップ数は第3-Cが接続されるまで確定しないため、
-     * 具体的な数値ではなく '?' を表示する設計になっていることを確認する。
+     * 第3-C: 注文確認・注文完了が接続され、合計ステップ数が確定した。
+     * 認証を経由する経路(guest)は11ステップ、最初からログイン済みの経路
+     * (authenticated)は7ステップと、経路によって異なる値を使う設計に
+     * なっていることを確認する。
      */
-    public function test_buyer_home_tutorial_js_shows_undetermined_total_steps(): void
+    public function test_buyer_home_tutorial_js_defines_total_steps_per_flow(): void
     {
         $js = file_get_contents(public_path('js/buyer-home-tutorial.js'));
 
-        $this->assertStringContainsString("TOTAL_STEPS = '?'", $js);
+        $this->assertStringContainsString('TOTAL_STEPS_GUEST = 11', $js);
+        $this->assertStringContainsString('TOTAL_STEPS_AUTHENTICATED = 7', $js);
+    }
+
+    /**
+     * 第3-C: ログイン済み利用者が「使い方を見る」から開始した場合は、
+     * SMS認証を案内しない短縮フロー(authenticated)になることを、
+     * ログイン判定(#buyer-home-logout-button)の有無で振り分けている
+     * 設計として確認する。
+     */
+    public function test_buyer_home_tutorial_js_switches_flow_by_login_state_on_start(): void
+    {
+        $js = file_get_contents(public_path('js/buyer-home-tutorial.js'));
+
+        $this->assertStringContainsString('function isBuyerLoggedIn()', $js);
+        $this->assertStringContainsString("currentFlow = isBuyerLoggedIn() ? 'authenticated' : 'guest';", $js);
     }
 
     /**
@@ -91,10 +108,10 @@ class BuyerHomeTutorialTest extends TestCase
         $this->assertStringContainsString('ログインできました。もう一度、注文したい商品を選んでみましょう。', $js);
         $this->assertStringContainsString("progress.route !== 'buyer.home' || progress.reason !== 'post-auth'", $js);
         $this->assertStringContainsString('stepOffset: 6', $js);
-        // reasonはroute同様、ステップ表示のたびに上書きされないよう、
+        // reason/flowはroute同様、ステップ表示のたびに上書きされないよう、
         // 基盤のextraオプション経由で保存する(第3-B監査で見つかった
         // route上書きバグの再発防止と同じ仕組みを使う)。
-        $this->assertStringContainsString("extra: { reason: 'post-auth' }", $js);
+        $this->assertStringContainsString("extra: { reason: 'post-auth', flow: 'guest' }", $js);
     }
 
     /**
@@ -120,5 +137,33 @@ class BuyerHomeTutorialTest extends TestCase
 
         $this->assertStringContainsString("addEventListener('pageshow'", $js);
         $this->assertStringContainsString('event.persisted', $js);
+    }
+
+    /**
+     * 第3-C: 認証後専用案内(ステップ7)が表示されている間に商品カードが
+     * クリックされた場合も、products.show側の「まとめステップ」で続けられる
+     * よう、reason:'post-auth' を引き継いだ進行状況を保存することを確認する。
+     * 第3-B時点ではこのクリックリスナーが無かった(orders.confirm以降は
+     * 未接続だったため)。
+     */
+    public function test_buyer_home_tutorial_js_saves_progress_on_card_click_during_post_auth_step(): void
+    {
+        $js = file_get_contents(public_path('js/buyer-home-tutorial.js'));
+
+        $this->assertStringContainsString('if (!postAuthActive) {', $js);
+        $this->assertStringContainsString("route: 'products.show',\n            reason: 'post-auth',\n            flow: 'guest'", $js);
+    }
+
+    /**
+     * buyer.home(通常のステップ1・post-auth案内とも)はisFinalPageを渡さない
+     * (購入者チュートリアル全体の最終ページではないため)ことを確認する。
+     * これにより、ローカル最終ステップ(1要素しかないためすぐ最後になる)で
+     * 「完了」ボタンが誤って表示されない(第3-Cで発見・対応)。
+     */
+    public function test_buyer_home_tutorial_js_does_not_pass_is_final_page(): void
+    {
+        $js = file_get_contents(public_path('js/buyer-home-tutorial.js'));
+
+        $this->assertStringNotContainsString('isFinalPage', $js);
     }
 }

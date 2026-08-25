@@ -11,23 +11,31 @@
  * 自動的に続きを始める。sessionStorageに正しい進行状況(route==='products.show')
  * が無い場合(URLを直接開いた、他のリンクから来た等)は、何もしない。
  *
- * 第3-B(今回)の範囲: 配達希望日→数量→注文へ進む、の3ステップに加えて、
+ * 第3-B: 配達希望日→数量→注文へ進む、の3ステップに加えて、
  * ログイン画面(auth-form-tutorial.js)への引き継ぎまで。
- * orders.confirm・注文確定・注文完了への接続はまだ第3-Cで行う。
+ * 第3-C(今回)の範囲: orders.confirm・注文確定・注文完了への接続。
+ * これに伴い合計ステップ数が確定した('?'表示の解消)。
+ * 認証を経由してこのページへ再訪した場合(reason:'post-auth')は、
+ * 配達日・数量・注文ボタンをすでに一度説明済みのため、3ステップを
+ * 繰り返さず「まとめステップ」1つにまとめる(条件は下記条件付きsteps参照)。
  * 注文へ進むボタン(またはログインリンク)が実際にクリックされた場合は、
  * このページの範囲でチュートリアルを片付ける(オーバーレイ・進行状態を残さない)。
+ * ログイン済みで注文ボタンを押した場合は、orders.confirm側で続きを
+ * 再開できるよう進行状況を保存する(第3-Cで追加)。
  */
 (function () {
     if (!window.DemoTutorial) {
         return;
     }
 
-    // 購入者チュートリアル全体の通し番号表示に使う値。第3-Cで注文確認・
-    // 注文完了のステップが加わるまで、合計ステップ数はまだ確定していないため、
-    // 具体的な数値を決め打ちせず '?' を表示する(例:"2 / ?")。
-    var TOTAL_STEPS = '?';
-    // 商品一覧に1ステップあるため、このページのステップは全体の2番目から始まる。
-    var STEP_OFFSET = 1;
+    // 経路ごとの合計ステップ数(buyer-home-tutorial.jsと同じ値)。
+    var TOTAL_STEPS_GUEST = 11;
+    var TOTAL_STEPS_AUTHENTICATED = 7;
+    // 商品一覧に1ステップあるため、通常の3ステップ版は全体の2番目から始まる。
+    var STEP_OFFSET_NORMAL = 1;
+    // まとめステップ(認証後再訪)は、商品一覧1+商品詳細3+ログイン2+post-auth案内1
+    // = 7個の後に続くため、全体の8番目から始まる(常にguest経路)。
+    var STEP_OFFSET_CONDENSED = 7;
 
     var steps = [
         {
@@ -44,7 +52,22 @@
         }
     ];
 
+    // 認証後の再訪専用。配達日・数量・注文ボタンをまとめて1ステップで案内する。
+    // 対象はbuyer-order-actions(配達日欄〜注文ボタンまでを囲む要素)。
+    // スポットライトの範囲外は操作できないため、個別要素ではなくこの
+    // まとめ要素を対象にすることで、配達日・数量・注文ボタンのすべてを
+    // 実際に操作できる状態のまま案内できる。
+    var condensedSteps = [
+        {
+            target: 'buyer-order-actions',
+            description: 'ログイン前に確認した手順と同じように、配達希望日と数量を選び、注文へ進みましょう。'
+        }
+    ];
+
     var tutorialActive = false;
+    // クリックリスナーで進行状況を保存する際に使うため、tryResume()で
+    // 判定したflowを保持しておく。
+    var currentFlow = 'guest';
 
     /**
      * sessionStorageの進行状況を見て、必要なら続きを開始する。
@@ -69,14 +92,21 @@
         }
 
         var startAtStep = typeof progress.stepIndex === 'number' ? progress.stepIndex : 0;
+        currentFlow = progress.flow === 'authenticated' ? 'authenticated' : 'guest';
+        var isPostAuthRevisit = progress.reason === 'post-auth';
+        // 認証後の再訪は常にguest経路(SMS認証を経由するのはguestのみ)。
+        var totalSteps = currentFlow === 'authenticated' ? TOTAL_STEPS_AUTHENTICATED : TOTAL_STEPS_GUEST;
+        var stepsToUse = isPostAuthRevisit ? condensedSteps : steps;
+        var stepOffset = isPostAuthRevisit ? STEP_OFFSET_CONDENSED : STEP_OFFSET_NORMAL;
 
         tutorialActive = true;
-        window.DemoTutorial.start(steps, {
+        window.DemoTutorial.start(stepsToUse, {
             tutorialKey: 'buyer',
             route: 'products.show',
-            startAtStep: startAtStep,
-            totalSteps: TOTAL_STEPS,
-            stepOffset: STEP_OFFSET,
+            startAtStep: startAtStep < stepsToUse.length ? startAtStep : 0,
+            extra: { flow: currentFlow },
+            totalSteps: totalSteps,
+            stepOffset: stepOffset,
             onFinish: function () {
                 tutorialActive = false;
             }
@@ -98,12 +128,11 @@
      * 実際のクリック処理(注文確認画面へのURL遷移、ログイン画面への遷移)は
      * product-detail.js側の処理・通常のリンク遷移のままで、ここでは妨げない。
      *
-     * ログインリンク(<a>)の場合だけ、ログイン画面(auth-form-tutorial.js)で
+     * ログインリンク(<a>)かログイン済みの注文ボタン(<button>)かで、
+     * 次に保存する進行状況(route)を出し分ける(遷移先の区別には
+     * data-demo-tutorial属性ではなくDOM構造の違い=tagNameを使う)。
+     * どちらの場合も、続く画面(login / orders.confirm)側で
      * チュートリアルを再開できるよう、新しい進行状況を保存し直す。
-     * ログイン済みで注文ボタン(<button>)を押した場合(orders.confirmへ進む
-     * 場合)は、ログイン画面を経由しないためこの保存は行わない
-     * (route要素をtagNameで区別する。data-demo-tutorial属性はどちらにも
-     * 付与されているため、遷移先の区別にはDOM構造の違いを使う)。
      */
     document.addEventListener('click', function (event) {
         if (!tutorialActive) {
@@ -121,6 +150,11 @@
 
         if (isLoginLink) {
             window.DemoTutorial.saveProgress('buyer', { stepIndex: 0, route: 'login' });
+        } else {
+            // ログイン済みで注文ボタンを押した場合(orders.confirmへ遷移する場合)。
+            // flowを引き継ぐことで、orders.confirm側が正しい合計ステップ数
+            // (11/7)を計算できる(第3-Cで追加)。
+            window.DemoTutorial.saveProgress('buyer', { stepIndex: 0, route: 'orders.confirm', flow: currentFlow });
         }
     }, true);
 })();

@@ -41,6 +41,9 @@
         document.getElementById('complete-order-number').textContent = data.order.order_number;
         document.getElementById('complete-delivery-date').textContent = formatDate(data.order.delivery_date);
         contentEl.hidden = false;
+        // 一般公開デモの操作チュートリアル向けに、注文完了内容の表示が
+        // 完了したことを知らせる(order-confirm.jsと同じ考え方)。
+        document.dispatchEvent(new CustomEvent('demo-tutorial:order-complete-rendered'));
     }).catch(function () {
         loadingEl.hidden = true;
         showMessage('注文情報の取得に失敗しました。時間をおいてもう一度お試しください。');

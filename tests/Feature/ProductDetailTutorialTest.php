@@ -113,10 +113,73 @@ class ProductDetailTutorialTest extends TestCase
         $this->assertStringContainsString("target: 'buyer-delivery-date'", $js);
         $this->assertStringContainsString("target: 'buyer-quantity'", $js);
         $this->assertStringContainsString("target: 'buyer-order-button'", $js);
-        // 第3-Bにより、合計ステップ数はまだ確定していない旨を示す '?' 表示に
-        // なった(第3-Cで注文確認・注文完了が接続されるまでの暫定仕様)。
-        $this->assertStringContainsString("TOTAL_STEPS = '?'", $js);
-        $this->assertStringContainsString('STEP_OFFSET = 1', $js);
+        // 第3-Cで注文確認・注文完了が接続され、合計ステップ数が確定した
+        // (未ログイン経由11ステップ・ログイン済み7ステップ)。
+        $this->assertStringContainsString('TOTAL_STEPS_GUEST = 11', $js);
+        $this->assertStringContainsString('TOTAL_STEPS_AUTHENTICATED = 7', $js);
+        $this->assertStringContainsString('STEP_OFFSET_NORMAL = 1', $js);
+    }
+
+    /**
+     * 第3-C: 認証を経由してこの画面へ再訪した場合(reason:'post-auth')は、
+     * 配達日・数量・注文ボタンを個別に3回説明し直さず、1つのまとめステップ
+     * (buyer-order-actions)にまとめることを確認する。
+     */
+    public function test_product_detail_tutorial_js_defines_condensed_step_for_post_auth_revisit(): void
+    {
+        $js = file_get_contents(public_path('js/product-detail-tutorial.js'));
+
+        $this->assertStringContainsString("target: 'buyer-order-actions'", $js);
+        $this->assertStringContainsString("progress.reason === 'post-auth'", $js);
+        $this->assertStringContainsString('STEP_OFFSET_CONDENSED = 7', $js);
+    }
+
+    /**
+     * まとめステップの対象(buyer-order-actions)が、配達日欄・数量欄・
+     * 注文ボタンをすべて内側に含む要素であることを確認する。これにより、
+     * スポットライトの範囲外がオーバーレイに覆われても、配達日・数量・
+     * 注文ボタンは実際に操作可能な状態のまま保たれる。
+     */
+    public function test_order_actions_wrapper_contains_delivery_date_quantity_and_order_button(): void
+    {
+        config(['demo.enabled' => true]);
+        $sale = $this->createSale();
+
+        $response = $this->get('/products/'.$sale->id);
+        $html = $response->getContent();
+
+        $wrapperStart = strpos($html, 'data-demo-tutorial="buyer-order-actions"');
+        $deliveryDatePos = strpos($html, 'data-demo-tutorial="buyer-delivery-date"');
+        $quantityPos = strpos($html, 'data-demo-tutorial="buyer-quantity"');
+        $orderButtonPos = strpos($html, 'data-demo-tutorial="buyer-order-button"');
+
+        $this->assertNotFalse($wrapperStart);
+        $this->assertGreaterThan($wrapperStart, $deliveryDatePos);
+        $this->assertGreaterThan($wrapperStart, $quantityPos);
+        $this->assertGreaterThan($wrapperStart, $orderButtonPos);
+    }
+
+    /**
+     * ログイン済みで注文ボタン(<button>)を押した場合、orders.confirm側で
+     * チュートリアルを再開できるよう進行状況を保存することを確認する
+     * (第3-B時点ではログインリンクの場合しか保存していなかった)。
+     */
+    public function test_product_detail_tutorial_js_saves_orders_confirm_progress_for_logged_in_order_button(): void
+    {
+        $js = file_get_contents(public_path('js/product-detail-tutorial.js'));
+
+        $this->assertStringContainsString("route: 'orders.confirm', flow: currentFlow", $js);
+    }
+
+    /**
+     * 商品詳細(通常3ステップ・まとめ1ステップとも)はisFinalPageを渡さない
+     * (購入者チュートリアル全体の最終ページではないため)ことを確認する。
+     */
+    public function test_product_detail_tutorial_js_does_not_pass_is_final_page(): void
+    {
+        $js = file_get_contents(public_path('js/product-detail-tutorial.js'));
+
+        $this->assertStringNotContainsString('isFinalPage', $js);
     }
 
     /**
@@ -153,8 +216,8 @@ class ProductDetailTutorialTest extends TestCase
     {
         $js = file_get_contents(public_path('js/buyer-home-tutorial.js'));
 
-        $this->assertStringContainsString("saveProgress('buyer', { stepIndex: 0, route: 'products.show' })", $js);
-        $this->assertStringContainsString("TOTAL_STEPS = '?'", $js);
+        $this->assertStringContainsString("saveProgress('buyer', { stepIndex: 0, route: 'products.show', flow: currentFlow })", $js);
+        $this->assertStringContainsString('TOTAL_STEPS_GUEST = 11', $js);
         // 実際にpreventDefault()を呼び出すコードが無いこと(遷移そのものを
         // 妨げていないこと)を確認する。設計意図を説明するコメント文中の
         // 単語とは区別するため、呼び出し構文の形で検索する。

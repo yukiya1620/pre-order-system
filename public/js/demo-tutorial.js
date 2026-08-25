@@ -129,6 +129,13 @@
         // 省略時はそのページのsteps配列だけを基準にする(従来通り)。
         totalSteps: 0,
         stepOffset: 0,
+        // isFinalPage: このページが購入者チュートリアル全体で本当に最後の
+        // ページかどうか(第3-C時点ではorders.completeだけがtrue)。
+        // trueのページのローカル最終ステップだけが「完了」ボタンを表示し、
+        // 押すとfinish()(既読フラグを立てる)へ進む。それ以外のページの
+        // ローカル最終ステップは、次へボタン自体を表示せず、利用者が実際の
+        // 画面要素を操作することで次のページへ進んでもらう(第3-C参照)。
+        isFinalPage: false,
         triggerElement: null,
         onFinish: null
     };
@@ -374,8 +381,26 @@
 
         backButtonEl.hidden = state.stepIndex === 0;
 
+        // isLastは「このページのローカルなsteps配列で最後」というだけの意味で、
+        // 購入者チュートリアル全体の最終ステップとは限らない(第3-Cで発見)。
+        // 例えば商品詳細ページの3ステップ目(注文へ進む)はローカルには最後だが、
+        // この後まだログイン・注文確認・注文完了が続く。ここで誤って「完了」
+        // ボタンを表示し利用者がそれを押してしまうと、まだ注文もしていないのに
+        // 購入者チュートリアル全体が完了(既読)扱いになってしまう。
+        // そのため、start()の呼び出し元がisFinalPage: trueを渡した場合
+        // (orders.completeだけ)に限り「完了」ボタンを表示する。それ以外の
+        // ページのローカル最終ステップでは、次へボタン自体を表示せず、
+        // 実際の画面要素(商品カード・注文ボタン・認証するボタン等)を
+        // 利用者本人が操作することで次のページへ進んでもらう設計にする。
         var isLast = state.stepIndex === localTotal - 1;
-        nextButtonEl.textContent = isLast ? '完了' : '次へ ▶';
+        var isTrulyFinal = isLast && state.isFinalPage;
+
+        if (isLast && !state.isFinalPage) {
+            nextButtonEl.hidden = true;
+        } else {
+            nextButtonEl.hidden = false;
+            nextButtonEl.textContent = isTrulyFinal ? '完了' : '次へ ▶';
+        }
     }
 
     /**
@@ -439,7 +464,16 @@
                 // 開始時と同様、ステップが変わるたびに「次へ/完了」ボタンへ
                 // フォーカスを移す。対象要素はフォーカストラップの対象外なので、
                 // 利用者はいつでもTabキーで対象要素側へ移動して操作できる。
-                nextButtonEl.focus();
+                // 非最終ページのローカル最終ステップでは次へボタン自体が
+                // 非表示になるため、その場合は戻るボタン、それも無ければ
+                // 吹き出し自体(tabindex="-1")へフォーカスを移す。
+                if (!nextButtonEl.hidden) {
+                    nextButtonEl.focus();
+                } else if (!backButtonEl.hidden) {
+                    backButtonEl.focus();
+                } else {
+                    tooltipEl.focus();
+                }
             }, 350);
         });
     }
@@ -449,7 +483,14 @@
             return;
         }
         if (state.stepIndex >= state.steps.length - 1) {
-            finish();
+            // 基盤側でも、isFinalPage(orders.completeだけ)のときに限り
+            // finish()(既読フラグを立てる)へ到達できるようにする。
+            // これにより、将来別のページでローカル最終ステップを作った際に、
+            // 万一UI側の対策(次へボタンの非表示)をし忘れても、
+            // 購入者チュートリアル全体が誤って既読になることはない。
+            if (state.isFinalPage) {
+                finish();
+            }
             return;
         }
         state.stepIndex += 1;
@@ -465,7 +506,11 @@
     }
 
     /**
-     * 完了(最終ステップまで進めて終える)。既読フラグを立てたうえで終了する。
+     * 完了(最終ステップで利用者が「完了」を押して終える)。
+     * この場合だけ既読フラグ(markTutorialSeen)を立てる。
+     * 第3-Cで、「Esc・×ボタン・ページ横断の後片付け」で使うclose()とは
+     * 責務を分離した(以前はどちらもmarkTutorialSeenしていたため、
+     * 商品詳細で「注文へ進む」を押しただけで既読になってしまっていた)。
      */
     function finish() {
         if (state.tutorialKey) {
@@ -476,13 +521,15 @@
     }
 
     /**
-     * 途中で閉じる。既読フラグは立てるが(毎回は強制表示しないため)、
-     * 途中経過(sessionStorageの進行状況)は破棄する。
-     * 通常操作へすぐ戻れるよう、DOMを完全に取り除く。
+     * 途中で閉じる(×ボタン・Escキー、またはページ横断のために画面固有の
+     * 接続コードが呼ぶ後片付け)。既読フラグは立てない。
+     * 途中経過(sessionStorageの進行状況)は破棄するが、呼び出し側が
+     * この直後に次ページ用の進行状況をsaveProgressで保存し直す使い方
+     * (product-detail-tutorial.js等)を妨げない。
+     * 通常操作へすぐ戻れるよう、DOMは完全に取り除く(teardown()に委譲)。
      */
     function close() {
         if (state.tutorialKey) {
-            markTutorialSeen(state.tutorialKey);
             clearProgress(state.tutorialKey);
         }
         teardown();
@@ -513,6 +560,7 @@
         state.extra = null;
         state.totalSteps = 0;
         state.stepOffset = 0;
+        state.isFinalPage = false;
         state.triggerElement = null;
         state.onFinish = null;
 
@@ -550,6 +598,11 @@
      * @param {number|string} [options.totalSteps] ページをまたぐ全体のステップ数(表示用)。
      *   省略時はsteps.length。まだ確定していない場合は '?' を渡せる(例:"5 / ?")。
      * @param {number} [options.stepOffset] このページのステップが全体の何番目から始まるか(0始まり、表示用)。
+     * @param {boolean} [options.isFinalPage] このページが購入者チュートリアル全体で
+     *   本当に最後のページかどうか(第3-C時点ではorders.completeだけtrue)。
+     *   trueの場合だけ、ローカル最終ステップで「完了」ボタンが表示され、
+     *   押すとfinish()(既読フラグを立てる)へ進む。省略時はfalse
+     *   (ローカル最終ステップでは次へボタン自体を表示しない)。
      * @param {Function} [options.onFinish] 終了時に呼ばれるコールバック。
      */
     function start(steps, options) {
@@ -573,6 +626,7 @@
         state.extra = options.extra || null;
         state.totalSteps = options.totalSteps || 0;
         state.stepOffset = options.stepOffset || 0;
+        state.isFinalPage = !!options.isFinalPage;
         state.triggerElement = options.triggerElement || null;
         state.onFinish = options.onFinish || null;
 

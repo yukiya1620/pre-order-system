@@ -8,7 +8,7 @@
 
         <p id="order-complete-message" class="message message-error" hidden></p>
 
-        <div id="order-complete-content" hidden>
+        <div id="order-complete-content" hidden data-demo-tutorial="buyer-order-complete">
             <p class="order-complete__icon" aria-hidden="true">✔</p>
             <h1 class="order-complete__heading">ご注文ありがとうございました</h1>
 
@@ -27,4 +27,12 @@
 
 @push('scripts')
     <script src="{{ asset('js/order-complete.js') }}" defer></script>
+    {{--
+        注文完了画面のチュートリアル接続コード。共通基盤(demo-tutorial.js)や
+        注文完了の表示処理(order-complete.js)には手を入れず、この画面
+        専用のファイルとして分離する。購入者チュートリアルの最終ステップ。
+    --}}
+    @if (config('demo.enabled'))
+        <script src="{{ asset('js/order-complete-tutorial.js') }}" defer></script>
+    @endif
 @endpush
